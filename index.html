@@ -3,168 +3,55 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Kai Sticker Maker — GitHub Pages</title>
+  <title>Kai Sticker Maker</title>
 
   <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 
   <!-- Styles -->
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Konva (global) -->
+  <!-- Konva -->
   <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
   <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- FileSaver -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
-  <div class="app-shell">
-    <!-- Topbar -->
-    <header class="topbar">
-      <div class="brand">
-        <div class="logo-badge">K</div>
-        <div class="brand-text">
-          <div class="brand-title">Kai Sticker Maker</div>
-          <div class="brand-sub">Create premium stickers — export PNG/PDF — GitHub Pages</div>
-        </div>
-      </div>
-
-      <div class="top-actions" role="toolbar" aria-label="Main toolbar">
-        <button id="undo" title="Undo (Ctrl/Cmd + Z)">⤺</button>
-        <button id="redo" title="Redo (Ctrl/Cmd + Y)">⤻</button>
-        <button id="addText" title="Add Text (T)">✎ Text</button>
-        <label class="btn upload">
-          ⬆ Upload
-          <input id="fileInput" type="file" accept="image/*" multiple />
-        </label>
-        <button id="toggleGrid" title="Toggle Grid (G)">▦ Grid</button>
-        <button id="presetsBtn" title="Presets">★ Presets</button>
-        <button id="darkToggle" title="Dark / Light">🌗</button>
-        <button id="previewBtn" title="Preview (P)">👁 Preview</button>
-        <div class="divider"></div>
-        <button id="downloadPNG" title="Download PNG (Shift + Ctrl/C)">PNG</button>
-        <button id="downloadPDF" title="Download PDF (Shift + Ctrl + P)">PDF</button>
-        <button id="printBtn" title="Print (Ctrl/Cmd + P)">🖨 Print</button>
-        <button id="saveProject" title="Save (Ctrl/Cmd + S)">💾 Save</button>
-        <button id="menuToggle" class="hamburger" aria-label="Open menu">☰</button>
-      </div>
-    </header>
-
-    <!-- Main area -->
-    <div class="content">
-      <!-- Left side: assets / presets -->
-      <aside class="sidebar" id="sidebar">
-        <div class="card">
-          <h4>Presets</h4>
-          <div class="preset-list">
-            <button class="preset" data-preset="grid">Grid 4×3</button>
-            <button class="preset" data-preset="circles">Circle Bundle</button>
-            <button class="preset" data-preset="labels">Label Sheet</button>
-            <button class="preset" data-preset="mixed">Mixed Layout</button>
-            <button class="preset" data-preset="tag">Tag Shapes</button>
-          </div>
-        </div>
-
-        <div class="card small">
-          <h4>Text Styles</h4>
-          <div class="font-pills">
-            <button class="font-pill" data-font="Poppins">Poppins</button>
-            <button class="font-pill" data-font="Inter">Inter</button>
-          </div>
-        </div>
-
-        <div class="card small">
-          <h4>Projects</h4>
-          <div id="projectList"></div>
-          <div class="project-controls">
-            <button id="newProject">New</button>
-            <button id="clearAll">Clear</button>
-          </div>
-        </div>
-
-        <div class="card small">
-          <h4>Shortcuts</h4>
-          <ul class="shortcuts">
-            <li>Ctrl/Cmd + C: Copy</li>
-            <li>Ctrl/Cmd + V: Paste</li>
-            <li>Delete / Backspace: Delete</li>
-            <li>Ctrl/Cmd + Z: Undo</li>
-            <li>Ctrl/Cmd + Shift + Z / Y: Redo</li>
-            <li>Arrow keys: Nudge (Shift = ×10)</li>
-            <li>Ctrl/Cmd + G: Group</li>
-            <li>Ctrl/Cmd + Shift + G: Ungroup</li>
-            <li>Ctrl/Cmd + D: Duplicate</li>
-            <li>Ctrl/Cmd + S: Save</li>
-          </ul>
-        </div>
-      </aside>
-
-      <!-- Canvas area -->
-      <main class="stage-area">
-        <div id="stage-parent">
-          <!-- Konva stage will mount here -->
-          <div id="stage-container"></div>
-        </div>
-        <div class="statusbar">
-          <span id="zoomLabel">Zoom: 100%</span>
-          <span id="canvasSize">A4 • 1123×794px</span>
-          <span id="statusTip">Hold <b>Space</b> to Pan • Ctrl/Cmd + Wheel to Zoom</span>
-        </div>
-      </main>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">K</span>
+      <span class="title">Kai Sticker Maker</span>
     </div>
-
-    <!-- Floating toolbar for text -->
-    <div id="textToolbar" class="floating-toolbar hidden">
-      <select id="fontFamily">
-        <option value="Poppins" selected>Poppins</option>
-        <option value="Inter">Inter</option>
-        <option value="Arial">Arial</option>
-      </select>
-      <input id="fontSize" type="number" min="8" max="240" value="36" />
-      <input id="fontColor" type="color" value="#111111" />
-      <button id="boldBtn"><b>B</b></button>
-      <button id="italicBtn"><i>I</i></button>
-      <button id="underlineBtn"><u>U</u></button>
+    <div class="toolbar">
+      <button id="addText">✎ Text</button>
+      <label class="upload">
+        ⬆ Upload
+        <input id="fileInput" type="file" accept="image/*" multiple />
+      </label>
+      <button id="undo">⤺ Undo</button>
+      <button id="redo">⤻ Redo</button>
+      <button id="presetGrid">▦ Grid</button>
+      <button id="presetCircles">◯ Circles</button>
+      <button id="previewBtn">👁 Preview</button>
+      <button id="downloadPNG">PNG</button>
+      <button id="downloadPDF">PDF</button>
     </div>
+  </header>
 
-    <!-- Preset modal -->
-    <div id="presetModal" class="modal hidden">
-      <div class="modal-card">
-        <h3>Insert Preset</h3>
-        <div class="preset-grid">
-          <button data-preset="grid">Grid 4×3</button>
-          <button data-preset="circles">Circle Bundle</button>
-          <button data-preset="labels">Label Sheet</button>
-          <button data-preset="mixed">Mixed Layout</button>
-          <button data-preset="tag">Tag Shapes</button>
-        </div>
-        <div class="modal-actions">
-          <button id="presetClose">Close</button>
-        </div>
-      </div>
-    </div>
+  <main class="main">
+    <div id="stage-container"></div>
+  </main>
 
-    <!-- Preview modal -->
-    <div id="previewModal" class="modal hidden">
-      <div class="modal-card wide preview-wrapper">
-        <div class="modal-head">
-          <h3>Preview (50% scale)</h3>
-          <button id="closePreview">✕</button>
-        </div>
-        <div class="preview-frame">
-          <img id="previewImage" alt="Preview" />
-        </div>
-        <div class="modal-actions">
-          <button id="downloadPreviewPNG">Download PNG</button>
-          <button id="downloadPreviewPDF">Download PDF</button>
-          <button id="printPreview">Print</button>
-        </div>
-      </div>
+  <!-- Preview Modal -->
+  <div id="previewModal" class="modal hidden">
+    <div class="modal-content">
+      <button id="closePreview" class="close">✕</button>
+      <h2>Preview</h2>
+      <img id="previewImage" alt="Preview" />
     </div>
   </div>
 
-  <!-- Scripts (module) -->
+  <!-- Scripts -->
   <script type="module" src="canvasManager.js"></script>
   <script type="module" src="app.js"></script>
 </body>
