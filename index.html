@@ -26,7 +26,7 @@
         <div class="logo-badge">K</div>
         <div class="brand-text">
           <div class="brand-title">Kai Sticker Maker</div>
-          <div class="brand-sub">Create premium stickers — export PNG/PDF — static (GitHub Pages)</div>
+          <div class="brand-sub">Create premium stickers — export PNG/PDF — GitHub Pages</div>
         </div>
       </div>
 
@@ -58,13 +58,11 @@
         <div class="card">
           <h4>Presets</h4>
           <div class="preset-list">
-            <!-- dynamic presets mapped by JS -->
             <button class="preset" data-preset="grid">Grid 4×3</button>
             <button class="preset" data-preset="circles">Circle Bundle</button>
             <button class="preset" data-preset="labels">Label Sheet</button>
-            <button class="preset" data-preset="mixed">Mixed Bundle</button>
-            <button class="preset" data-preset="sticker-strips">Sticker Strips</button>
-            <button class="preset" data-preset="hex-grid">Hex Grid (fun)</button>
+            <button class="preset" data-preset="mixed">Mixed Layout</button>
+            <button class="preset" data-preset="tag">Tag Shapes</button>
           </div>
         </div>
 
@@ -130,7 +128,7 @@
       <button id="underlineBtn"><u>U</u></button>
     </div>
 
-    <!-- Preset quick modal -->
+    <!-- Preset modal -->
     <div id="presetModal" class="modal hidden">
       <div class="modal-card">
         <h3>Insert Preset</h3>
@@ -138,9 +136,8 @@
           <button data-preset="grid">Grid 4×3</button>
           <button data-preset="circles">Circle Bundle</button>
           <button data-preset="labels">Label Sheet</button>
-          <button data-preset="mixed">Mixed Bundle</button>
-          <button data-preset="sticker-strips">Sticker Strips</button>
-          <button data-preset="hex-grid">Hex Grid</button>
+          <button data-preset="mixed">Mixed Layout</button>
+          <button data-preset="tag">Tag Shapes</button>
         </div>
         <div class="modal-actions">
           <button id="presetClose">Close</button>
@@ -150,14 +147,12 @@
 
     <!-- Preview modal -->
     <div id="previewModal" class="modal hidden">
-      <div class="modal-card wide preview-wrapper">
+      <div class="modal-card wide">
         <div class="modal-head">
-          <h3>Preview (50% scale)</h3>
+          <h3>Preview</h3>
           <button id="closePreview">✕</button>
         </div>
-        <div class="preview-frame">
-          <img id="previewImage" alt="Preview" />
-        </div>
+        <img id="previewImage" alt="Preview" style="width:100%;height:auto;border-radius:8px" />
         <div class="modal-actions">
           <button id="downloadPreviewPNG">Download PNG</button>
           <button id="downloadPreviewPDF">Download PDF</button>
@@ -167,7 +162,7 @@
     </div>
   </div>
 
-  <!-- Scripts (module) -->
+  <!-- Scripts -->
   <script type="module" src="canvasManager.js"></script>
   <script type="module" src="app.js"></script>
 </body>
