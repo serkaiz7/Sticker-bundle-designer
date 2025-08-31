@@ -20,11 +20,12 @@ export class CanvasManager {
         this.historyIndex = -1;
         this.selectedNodes = [];
         this.tr = new Konva.Transformer({
-            anchorStroke: 'blue',
+            anchorStroke: '#2196F3',
             anchorFill: 'white',
-            anchorSize: 10,
-            borderStroke: 'blue',
+            anchorSize: 12,
+            borderStroke: '#2196F3',
             borderDash: [3, 3],
+            rotateAnchorOffset: 30,
         });
         this.layer.add(this.tr);
         this.gridSize = 20;
@@ -45,14 +46,14 @@ export class CanvasManager {
         for (let i = 0; i < this.canvasWidth / this.gridSize; i++) {
             this.gridLayer.add(new Konva.Line({
                 points: [i * this.gridSize, 0, i * this.gridSize, this.canvasHeight],
-                stroke: '#ddd',
+                stroke: '#e0e0e0',
                 strokeWidth: 1,
             }));
         }
         for (let i = 0; i < this.canvasHeight / this.gridSize; i++) {
             this.gridLayer.add(new Konva.Line({
                 points: [0, i * this.gridSize, this.canvasWidth, i * this.gridSize],
-                stroke: '#ddd',
+                stroke: '#e0e0e0',
                 strokeWidth: 1,
             }));
         }
@@ -84,21 +85,21 @@ export class CanvasManager {
         this.stage.batchDraw();
     }
 
-    addImage(src, callback) {
+    addImage(src, index = 0) {
         Konva.Image.fromURL(src, (img) => {
             img.setAttrs({
-                x: 50,
-                y: 50,
+                x: 50 + index * 20,
+                y: 50 + index * 20,
                 scaleX: 0.5,
                 scaleY: 0.5,
                 draggable: true,
             });
             img.on('dragmove', () => this.snapToGrid(img));
             img.on('dragend', () => this.attachToPreset(img));
+            img.on('transform', () => this.saveState());
             this.layer.add(img);
             this.layer.draw();
             this.saveState();
-            if (callback) callback();
         });
     }
 
@@ -176,14 +177,14 @@ export class CanvasManager {
                 const groupPos = child.absolutePosition();
                 node.position({ x: pos.x - groupPos.x, y: pos.y - groupPos.y });
                 // Fit to group bounds
-                const bounds = child.getClientRect({ skipTransform: true });
+                const bounds = child.getClientRect({ relativeTo: this.layer, skipTransform: true });
                 const imgWidth = node.width() * node.scaleX();
                 const imgHeight = node.height() * node.scaleY();
-                const scaleX = bounds.width / imgWidth;
-                const scaleY = bounds.height / imgHeight;
+                const scaleX = child.clipWidth() / imgWidth;
+                const scaleY = child.clipHeight() / imgHeight;
                 const scale = Math.min(scaleX, scaleY);
                 node.scale({ x: scale, y: scale });
-                node.position({ x: bounds.x, y: bounds.y });
+                node.position({ x: 0, y: 0 }); // Align to top-left of clip
                 this.layer.draw();
                 this.saveState();
             }
@@ -197,6 +198,7 @@ export class CanvasManager {
         let clipHeight = 200;
         if (type === 'grid') {
             preset = new Konva.Group({ x: 50, y: 50, draggable: true });
+            preset.setAttr('isPreset', true);
             for (let i = 0; i < 3; i++) {
                 for (let j = 0; j < 3; j++) {
                     preset.add(new Konva.Rect({
@@ -221,51 +223,88 @@ export class CanvasManager {
             preset.setAttr('isPreset', true);
             switch (type) {
                 case 'circle':
-                    visual = new Konva.Circle({ x: 100, y: 100, radius: 100, stroke: 'black' });
+                    clipWidth = 200;
+                    clipHeight = 200;
+                    visual = new Konva.Circle({ x: 100, y: 100, radius: 100, stroke: 'black', strokeWidth: 2 });
                     preset.clipFunc((ctx) => {
                         ctx.arc(100, 100, 100, 0, Math.PI * 2, false);
                     });
                     break;
                 case 'label':
                     preset = new Konva.Label({ x: 50, y: 50, draggable: true });
-                    preset.add(new Konva.Tag({ fill: 'yellow' }));
-                    preset.add(new Konva.Text({ text: 'Label', padding: 5 }));
-                    return; // Skip clip for label
+                    preset.add(new Konva.Tag({ fill: 'yellow', cornerRadius: 5 }));
+                    preset.add(new Konva.Text({ text: 'Label', padding: 10, fill: 'black' }));
+                    preset.setAttr('isPreset', true);
+                    this.layer.add(preset);
+                    this.layer.draw();
+                    this.saveState();
+                    return;
                 case 'rectangle':
-                    visual = new Konva.Rect({ x: 0, y: 0, width: 200, height: 100, stroke: 'black' });
+                    clipWidth = 200;
                     clipHeight = 100;
-                    preset.clipHeight(100);
+                    visual = new Konva.Rect({ x: 0, y: 0, width: 200, height: 100, stroke: 'black', strokeWidth: 2 });
                     break;
                 case 'ellipse':
-                    visual = new Konva.Ellipse({ x: 100, y: 100, radiusX: 100, radiusY: 50, stroke: 'black' });
-                    preset.clipFunc((ctx) => {
-                        ctx.ellipse(100, 100, 100, 50, 0, 0, Math.PI * 2);
-                    });
+                    clipWidth = 200;
                     clipHeight = 100;
-                    preset.clipHeight(100);
+                    visual = new Konva.Ellipse({ x: 100, y: 50, radiusX: 100, radiusY: 50, stroke: 'black', strokeWidth: 2 });
+                    preset.clipFunc((ctx) => {
+                        ctx.ellipse(100, 50, 100, 50, 0, 0, Math.PI * 2);
+                    });
                     break;
                 case 'triangle':
-                    visual = new Konva.RegularPolygon({ x: 100, y: 100, sides: 3, radius: 100, stroke: 'black' });
+                    clipWidth = 200;
+                    clipHeight = 200;
+                    visual = new Konva.RegularPolygon({ x: 100, y: 100, sides: 3, radius: 100, stroke: 'black', strokeWidth: 2 });
                     preset.clipFunc((ctx) => {
                         ctx.beginPath();
                         ctx.moveTo(100, 0);
-                        ctx.lineTo(0, 200);
-                        ctx.lineTo(200, 200);
+                        ctx.lineTo(0, 173);
+                        ctx.lineTo(200, 173);
                         ctx.closePath();
                     });
                     break;
                 case 'star':
-                    visual = new Konva.Star({ x: 100, y: 100, numPoints: 5, innerRadius: 40, outerRadius: 100, stroke: 'black' });
+                    clipWidth = 200;
+                    clipHeight = 200;
+                    visual = new Konva.Star({ x: 100, y: 100, numPoints: 5, innerRadius: 40, outerRadius: 100, stroke: 'black', strokeWidth: 2 });
                     preset.clipFunc((ctx) => {
-                        // Simple approx rect clip for star, or implement path
-                        ctx.rect(0, 0, 200, 200);
+                        // Approximate clip for star
+                        ctx.beginPath();
+                        for (let i = 0; i < 10; i++) {
+                            const radius = i % 2 === 0 ? 100 : 40;
+                            const angle = (i * Math.PI / 5) + (Math.PI / 10);
+                            ctx.lineTo(100 + Math.cos(angle) * radius, 100 + Math.sin(angle) * radius);
+                        }
+                        ctx.closePath();
                     });
                     break;
             }
+            preset.clipWidth(clipWidth);
+            preset.clipHeight(clipHeight);
             preset.add(visual);
         }
         if (preset) {
             preset.on('dragmove', () => this.snapToGrid(preset));
+            preset.on('transform', () => {
+                // Update clip dimensions on scale
+                const newScaleX = preset.scaleX();
+                const newScaleY = preset.scaleY();
+                preset.clipWidth(clipWidth * newScaleX);
+                preset.clipHeight(clipHeight * newScaleY);
+                if (visual instanceof Konva.Circle) {
+                    visual.x(100 * newScaleX);
+                    visual.y(100 * newScaleY);
+                    visual.radius(100 * Math.min(newScaleX, newScaleY));
+                } else if (visual instanceof Konva.Ellipse) {
+                    visual.x(100 * newScaleX);
+                    visual.y(50 * newScaleY);
+                    visual.radiusX(100 * newScaleX);
+                    visual.radiusY(50 * newScaleY);
+                } // Add similar for others if needed
+                this.layer.batchDraw();
+            });
+            preset.on('transformend', () => this.saveState());
             this.layer.add(preset);
             this.layer.draw();
             this.saveState();
@@ -295,11 +334,18 @@ export class CanvasManager {
     updateTextProperty(prop, value) {
         if (this.selectedNodes[0] instanceof Konva.Text) {
             const text = this.selectedNodes[0];
+            let fontStyle = text.fontStyle() || '';
             if (prop === 'fontFamily') text.fontFamily(value);
             if (prop === 'fontSize') text.fontSize(parseInt(value));
             if (prop === 'fill') text.fill(value);
-            if (prop === 'bold') text.fontStyle(text.fontStyle().includes('bold') ? text.fontStyle().replace('bold', '').trim() : text.fontStyle() + ' bold');
-            if (prop === 'italic') text.fontStyle(text.fontStyle().includes('italic') ? text.fontStyle().replace('italic', '').trim() : text.fontStyle() + ' italic');
+            if (prop === 'bold') {
+                fontStyle = fontStyle.includes('bold') ? fontStyle.replace('bold', '').trim() : (fontStyle + ' bold').trim();
+                text.fontStyle(fontStyle);
+            }
+            if (prop === 'italic') {
+                fontStyle = fontStyle.includes('italic') ? fontStyle.replace('italic', '').trim() : (fontStyle + ' italic').trim();
+                text.fontStyle(fontStyle);
+            }
             if (prop === 'underline') text.textDecoration(text.textDecoration() === 'underline' ? '' : 'underline');
             this.layer.draw();
             this.saveState();
@@ -333,7 +379,14 @@ export class CanvasManager {
         this.stage = node;
         this.layer = this.stage.getChildren()[1]; // Assuming order
         this.gridLayer = this.stage.getChildren()[0];
-        this.tr = new Konva.Transformer();
+        this.tr = new Konva.Transformer({
+            anchorStroke: '#2196F3',
+            anchorFill: 'white',
+            anchorSize: 12,
+            borderStroke: '#2196F3',
+            borderDash: [3, 3],
+            rotateAnchorOffset: 30,
+        });
         this.layer.add(this.tr);
         this.stage.draw();
     }
@@ -353,7 +406,7 @@ export class CanvasManager {
 
     exportToPNG() {
         const dataURL = this.stage.toDataURL({ pixelRatio: 2 });
-        saveAs(new Blob([dataURL]), 'kai-sticker.png');
+        saveAs(dataURL, 'kai-sticker.png');
     }
 
     exportToPDF() {
