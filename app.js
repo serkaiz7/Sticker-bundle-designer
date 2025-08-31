@@ -11,14 +11,11 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
         Array.from(files).forEach((file, index) => {
             const reader = new FileReader();
             reader.onload = (event) => {
-                cm.addImage(event.target.result, () => {
-                    if (index === files.length - 1) {
-                        e.target.value = ''; // Reset input
-                    }
-                });
+                cm.addImage(event.target.result, index);
             };
             reader.readAsDataURL(file);
         });
+        e.target.value = ''; // Reset input after processing
     }
 });
 
