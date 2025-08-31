@@ -1,31 +1,100 @@
-// canvasManager.js — core Konva interactions, tracing, export
-// Keep this file alongside app.js. Uses Konva, ClipperLib, FileSaver (CDNs from index.html).
+// canvasManager.js — core Konva interactions, tracing, export, undo/redo, A4 printable canvas
+// Uses Konva, ClipperLib, FileSaver (CDNs included in index.html)
 
-const stageWidth = 1100, stageHeight = 760;
+// A4 in millimeters
+const A4_MM = { w: 210, h: 297 };
+
+// history (undo / redo) — store snapshots of project JSON
+let history = [], historyIndex = -1;
+export function pushHistory(){
+  try{
+    const snap = toJSON();
+    // if not at end, chop future states
+    if(historyIndex < history.length - 1) history = history.slice(0, historyIndex + 1);
+    history.push(JSON.stringify(snap));
+    historyIndex = history.length - 1;
+    // limit history length
+    if(history.length > 60){ history.shift(); historyIndex = history.length - 1; }
+    // console.log('history.push', historyIndex, history.length);
+  }catch(e){ console.warn('pushHistory failed', e); }
+}
+export function undoHistory(){
+  if(historyIndex <= 0) return;
+  historyIndex--;
+  const state = JSON.parse(history[historyIndex]);
+  loadFromJSON(state);
+}
+export function redoHistory(){
+  if(historyIndex >= history.length - 1) return;
+  historyIndex++;
+  const state = JSON.parse(history[historyIndex]);
+  loadFromJSON(state);
+}
+export function resetHistory(){
+  history = []; historyIndex = -1;
+  pushHistory();
+}
+
+// Stage and wrappers
 let stage, baseLayer;
 let selection = null;
 let showCut = true;
-const wrappers = []; // wrapper objects per image layer
+const wrappers = [];
 
+// convert mm -> px given DPI
+function mmToPx(mm, dpi){ return Math.round((mm / 25.4) * dpi); }
+
+// find DPI select value (default 300) — used at init and when user changes it
+function getSelectedDPI(){
+  const el = document.getElementById('export-dpi');
+  let dpi = 300;
+  if(el) dpi = Number(el.value) || 300;
+  return dpi;
+}
+
+// initCanvas: creates a Konva stage sized to A4 in pixels (print size), then scales the container to fit the stage-parent
 export function initCanvas(){
   const parent = document.getElementById('stage-parent');
   parent.innerHTML = '';
   const container = document.createElement('div');
   container.id = 'stage';
-  container.style.width = '100%';
-  container.style.height = '100%';
+  container.style.position = 'relative';
+  container.style.transformOrigin = 'top left';
+  container.style.boxSizing = 'content-box';
   parent.appendChild(container);
 
-  stage = new Konva.Stage({ container: container, width: stageWidth, height: stageHeight });
+  const dpi = getSelectedDPI();
+  const pw = mmToPx(A4_MM.w, dpi);
+  const ph = mmToPx(A4_MM.h, dpi);
+
+  // create Konva stage with print pixel size
+  stage = new Konva.Stage({ container: container, width: pw, height: ph });
   baseLayer = new Konva.Layer();
   stage.add(baseLayer);
 
-  // white background
-  const bg = new Konva.Rect({ x:0, y:0, width:stageWidth, height:stageHeight, fill:'#ffffff' });
+  // white background (print white)
+  const bg = new Konva.Rect({ x:0, y:0, width: pw, height: ph, fill:'#ffffff' });
   baseLayer.add(bg);
   baseLayer.draw();
 
-  // wheel resize (desktop)
+  // fit stage to container (scale down to fit UI)
+  fitStageToContainer();
+
+  // fit on resize or DPI change
+  window.addEventListener('resize', fitStageToContainer);
+  const dpiEl = document.getElementById('export-dpi');
+  if(dpiEl) dpiEl.addEventListener('change', ()=>{ // recreate stage to match new pixel size
+    // tear down existing stage and recreate
+    try{ stage.destroy(); }catch(e){}
+    initCanvas();
+    // reload history first snapshot if present
+    if(historyIndex >= 0 && history[historyIndex]) {
+      const state = JSON.parse(history[historyIndex]);
+      loadFromJSON(state);
+    }
+  });
+
+  // wheel resize (desktop): scale focused image group
   stage.container().addEventListener('wheel', (e)=>{
     const pointer = stage.getPointerPosition();
     if(!pointer) return;
@@ -37,16 +106,36 @@ export function initCanvas(){
     const delta = Math.sign(e.deltaY);
     const fine = e.shiftKey ? 0.01 : 0.06;
     const current = node.group.scaleX();
-    const newScale = Math.max(0.05, current * (1 - delta * fine));
-    node.group.scale({x:newScale,y:newScale});
+    const newScale = Math.max(0.02, current * (1 - delta * fine));
+    node.group.scale({ x: newScale, y: newScale });
     node.scaleX = newScale; node.scaleY = newScale;
     baseLayer.batchDraw();
-  }, {passive:false});
+  }, { passive: false });
 
-  // touch: enable multitouch gestures handled by Konva transforms (use transformer on selection)
-  stage.on('click tap', (e)=>{ if(e.target === stage) { selection = null; } });
+  // push initial empty state to history
+  resetHistory();
 }
 
+// Fit the Konva stage (print px) visually into the stage-parent by scaling the container DOM element
+function fitStageToContainer(){
+  if(!stage) return;
+  const parent = document.getElementById('stage-parent');
+  const container = stage.container();
+  // parent inner size (account for padding)
+  const availableW = parent.clientWidth - 20;
+  const availableH = parent.clientHeight - 20;
+  const stageW = stage.width();
+  const stageH = stage.height();
+  const scale = Math.min(availableW / stageW, availableH / stageH, 1);
+  // apply CSS transform scale to Konva container
+  container.style.transform = `scale(${scale})`;
+  container.style.width = `${stageW}px`;
+  container.style.height = `${stageH}px`;
+  // center it visually
+  container.style.margin = '0 auto';
+}
+
+// helper to locate wrapper from clicked Konva node
 function findImageWrapperForKonva(shape){
   if(!shape) return null;
   let cur = shape;
@@ -54,13 +143,13 @@ function findImageWrapperForKonva(shape){
   return cur ? cur._wrapper : null;
 }
 
+// add image layer (keeps real print pixel coordinates via stage)
 export async function addImageLayer(imgElement, name){
-  // create group for layer so transforms are local
   const group = new Konva.Group({ x:50 + wrappers.length*12, y:50 + wrappers.length*12, draggable:true });
   const kImg = new Konva.Image({ image: imgElement, width: imgElement.width, height: imgElement.height });
 
-  // scale big images down for workspace convenience
-  const maxDim = 320;
+  // scale big images down for workspace convenience (these are still in print px units)
+  const maxDim = Math.min(stage.width() * 0.3, 800);
   let scale = 1;
   if(imgElement.width > maxDim || imgElement.height > maxDim){
     scale = Math.min(maxDim / imgElement.width, maxDim / imgElement.height);
@@ -70,64 +159,54 @@ export async function addImageLayer(imgElement, name){
 
   group.add(kImg);
 
-  // cutline preview path
-  const path = new Konva.Path({ data:'', stroke:'#ef476f', strokeWidth:2, listening:false, visible:false });
+  // cutline preview
+  const path = new Konva.Path({ data:'', stroke:'#ef476f', strokeWidth:4, listening:false, visible:false });
   group.add(path);
 
-  // add transformer for direct touch friendly manipulation
+  // transformer (touch friendly)
   const tr = new Konva.Transformer({
     nodes: [kImg],
     anchorSize:10,
     rotateAnchorOffset:40,
     enabledAnchors: ['top-left','top-right','bottom-left','bottom-right'],
     keepRatio: true,
-    boundBoxFunc: (oldBox, newBox) => newBox
   });
   group.add(tr);
   tr.hide();
 
-  // wrapper
   const wrapper = {
     id: 'img-' + (wrappers.length + 1),
-    name: name || ('img-'+(wrappers.length+1)),
+    name: name || ('img-' + (wrappers.length + 1)),
     imgElement, group, kImg, tr, tracePath: null, locked:false, rotation:0, scaleX:scale, scaleY:scale,
     async traceSilhouette(){ const svgPath = await traceSilhouetteFromImage(this.imgElement, 8); this.tracePath = svgPath; path.data(svgPath); path.visible(showCut); baseLayer.batchDraw(); }
   };
   group._wrapper = wrapper;
 
-  // selection handling — click group to select
-  group.on('click tap', ()=>{ selection = wrapper; highlightSelection(wrapper); });
-
-  // drag update
-  group.on('dragmove', ()=> baseLayer.batchDraw());
+  // selection and events
+  group.on('click tap', ()=> { selection = wrapper; highlightSelection(wrapper); });
+  group.on('dragend', ()=> { baseLayer.batchDraw(); pushHistory(); });
+  kImg.on('transformend', ()=> { // when user scales/rotates
+    wrapper.scaleX = kImg.scaleX(); wrapper.scaleY = kImg.scaleY();
+    wrapper.rotation = kImg.rotation();
+    pushHistory();
+    baseLayer.batchDraw();
+  });
 
   baseLayer.add(group);
   wrappers.push(wrapper);
   baseLayer.draw();
-
-  // show transform when tapped (mobile)
-  kImg.on('transformstart', ()=>{ tr.show(); baseLayer.batchDraw(); });
-  kImg.on('transformend', ()=>{ tr.hide(); baseLayer.batchDraw(); });
-
+  pushHistory();
   return wrapper;
 }
 
 function highlightSelection(wrapper){
-  // show/hide transformer and set selection
-  wrappers.forEach(w => {
-    if(w.tr) w.tr.hide();
-  });
-  if(wrapper && wrapper.tr){
-    wrapper.tr.nodes([wrapper.kImg]);
-    wrapper.tr.show();
-  }
+  wrappers.forEach(w => { if(w.tr) w.tr.hide(); });
+  if(wrapper && wrapper.tr){ wrapper.tr.nodes([wrapper.kImg]); wrapper.tr.show(); }
   baseLayer.batchDraw();
 }
 
-// getter
 export function getSelectedLayer(){ return selection; }
 
-// remove layer
 export function deleteSelected(){
   if(!selection) return;
   selection.group.destroy();
@@ -135,32 +214,31 @@ export function deleteSelected(){
   if(i>=0) wrappers.splice(i,1);
   selection = null;
   baseLayer.batchDraw();
+  pushHistory();
 }
 
-// make text sticker inside selected group
 export function makeTextSticker(text = 'Label'){
   if(!selection) return;
   const g = selection.group;
   const txt = new Konva.Text({
-    text, x: 10, y: 10, fontSize: 20, fontFamily: 'Inter, Arial, sans-serif',
-    fill: '#0b1724', padding:6, draggable:true
+    text, x: 10, y: 10, fontSize: 36, fontFamily: 'Inter, Arial, sans-serif',
+    fill: '#0b1724', padding:10, draggable:true
   });
-  // white rounded background pill
-  const bg = new Konva.Rect({ x: -6, y: -6, width: txt.width()+12, height: txt.height()+12, fill:'#ffffff', cornerRadius:8, listening:false });
+  const bg = new Konva.Rect({ x: -12, y: -12, width: txt.width() + 24, height: txt.height() + 24, fill: '#ffffff', cornerRadius:999, listening:false });
   const container = new Konva.Group({ draggable:true });
-  container.add(bg);
-  container.add(txt);
-  // sync bg size
-  txt.on('transform resize', ()=>{ bg.width(txt.width()+12); bg.height(txt.height()+12); });
-  txt.on('dragmove', ()=> baseLayer.batchDraw());
+  container.add(bg); container.add(txt);
+  // update background size when text changes (if edited later)
+  txt.on('transform resize', ()=>{ bg.width(txt.width()+24); bg.height(txt.height()+24); });
+  txt.on('dragend', ()=> baseLayer.batchDraw());
   g.add(container);
   baseLayer.batchDraw();
+  pushHistory();
 }
 
-// save/load project JSON
+// Save / Load JSON (project serialization)
 export function toJSON(){
   return {
-    meta: { width: stageWidth, height: stageHeight, units: 'px' },
+    meta: { width: stage.width(), height: stage.height(), dpi: getSelectedDPI(), units:'px' },
     layers: wrappers.map(w => ({
       id: w.id,
       name: w.name,
@@ -169,6 +247,7 @@ export function toJSON(){
       scaleX: w.group.scaleX(),
       scaleY: w.group.scaleY(),
       rotation: w.group.rotation(),
+      // Note: images are not embedded here; for portability embed base64 in 'imageData' property if desired.
       tracePath: w.tracePath
     }))
   };
@@ -176,29 +255,34 @@ export function toJSON(){
 
 export function loadFromJSON(json){
   // clear current
-  wrappers.forEach(w=> w.group.destroy());
+  wrappers.forEach(w => w.group.destroy());
   wrappers.length = 0;
   selection = null;
-  const data = json.layers || [];
-  data.forEach((ld, idx) => {
-    // create a placeholder image (real projects should embed base64 images in json)
+
+  const li = (json && json.layers) ? json.layers : [];
+  li.forEach((ld, idx) => {
+    // because we didn't embed images, create placeholders — real project JSON should include base64 images
     const placeholder = new Image();
-    placeholder.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='100%' height='100%' fill='#f3f6fb'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='22' fill='#333'>${ld.name||'img'}</text></svg>`);
+    placeholder.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'><rect width='100%' height='100%' fill='#f3f6fb'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='32' fill='#333'>${ld.name||'img'}</text></svg>`);
     placeholder.onload = () => {
       addImageLayer(placeholder, ld.name || ('img-'+idx)).then(w => {
         w.group.position({ x: ld.x, y: ld.y });
         w.group.scale({ x: ld.scaleX || 1, y: ld.scaleY || 1 });
         w.group.rotation(ld.rotation || 0);
-        if(ld.tracePath){ w.tracePath = ld.tracePath; const p = w.group.findOne('Path'); if(p) { p.data(ld.tracePath); p.visible(showCut); } }
+        if(ld.tracePath){ w.tracePath = ld.tracePath; const p = w.group.findOne('Path'); if(p){ p.data(ld.tracePath); p.visible(showCut); } }
+        baseLayer.batchDraw();
       });
     };
   });
+
+  // after loading, ensure history picks up this state if it exists in history
+  baseLayer.batchDraw();
 }
 
 // toggle cutline visibility
-export function toggleCutLines(){ showCut = !showCut; wrappers.forEach(w=>{ const p = w.group.findOne('Path'); if(p) p.visible(showCut); }); baseLayer.batchDraw(); }
+export function toggleCutLines(){ showCut = !showCut; wrappers.forEach(w => { const p = w.group.findOne('Path'); if(p) p.visible(showCut); }); baseLayer.batchDraw(); }
 
-// auto arrange (grid)
+// auto arrange grid
 export function autoArrangeGrid(cols = 3, rows = 3){
   const padding = 18;
   const cellW = (stage.width() - padding * (cols + 1)) / cols;
@@ -211,17 +295,17 @@ export function autoArrangeGrid(cols = 3, rows = 3){
     w.group.position({ x, y });
   });
   baseLayer.batchDraw();
+  pushHistory();
 }
 
-// export PNG (high-res)
+// export PNG & SVG (PNG uses stage.toDataURL to preserve actual pixels)
 export async function exportPNG(){
-  // create dataURL from stage at pixelRatio (2)
-  const dataURL = stage.toDataURL({ pixelRatio: 2 });
+  // export at 1:1 stage pixels (which is print px)
+  const dataURL = stage.toDataURL({ pixelRatio: 1 });
   const res = await (await fetch(dataURL)).blob();
   return res;
 }
 
-// export SVG — embed images as data URLs and add cut paths
 export function exportSVG(){
   const w = stage.width(), h = stage.height();
   const svg = [`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>`];
@@ -233,7 +317,7 @@ export function exportSVG(){
     const ctx = img.getContext('2d'); ctx.drawImage(item.imgElement, 0, 0);
     const data = img.toDataURL('image/png');
     svg.push(`<image href='${data}' x='${x}' y='${y}' width='${item.kImg.width()}' height='${item.kImg.height()}' />`);
-    if(item.tracePath) svg.push(`<path d='${item.tracePath}' fill='none' stroke='#ef476f' stroke-width='2' />`);
+    if(item.tracePath) svg.push(`<path d='${item.tracePath}' fill='none' stroke='#ef476f' stroke-width='4' />`);
   }
   svg.push('</svg>');
   return svg.join('\n');
@@ -288,11 +372,9 @@ function polygonToSVGPath(points){
 }
 
 async function traceSilhouetteFromImage(imgElement, threshold = 10){
-  // build mask & contour
   const mask = buildBinaryMask(imgElement, threshold);
   const pts = marchingSquares(mask);
   if(!pts) return '';
-  // attempt offset with Clipper for a nicer die-cut outer offset
   try{
     const scale = 8;
     const subj = [ pts.map(p => ({ X: Math.round(p[0]*scale), Y: Math.round(p[1]*scale) })) ];
