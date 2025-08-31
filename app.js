@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * A fetch wrapper with exponential backoff for retrying failed requests.
+     * This makes the connection to the AI more reliable.
      * @param {string} url - The API endpoint URL.
      * @param {object} options - The options for the fetch request.
      * @param {number} [maxRetries=5] - The maximum number of retries.
@@ -27,12 +28,13 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch(url, options);
                 if (response.ok) return await response.json();
-                // Handle rate limiting specifically
+                
+                // Handle rate limiting specifically by waiting and retrying
                 if (response.status === 429) { 
                     await new Promise(res => setTimeout(res, delay)); 
                     delay *= 2; 
                 } else { 
-                    // Handle other errors
+                    // Handle other server errors
                     const error = await response.text(); 
                     throw new Error(`API Error: ${response.status} ${error}`); 
                 }
@@ -53,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 reader.onload = (event) => cm.addImage(event.target.result, index);
                 reader.readAsDataURL(file);
             });
-            e.target.value = ''; // Reset input
+            e.target.value = ''; // Reset input to allow re-uploading the same file
         }
     });
 
@@ -65,7 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('loadInput').click());
     document.getElementById('loadInput').addEventListener('change', (e) => {
         const file = e.target.files[0];
-        if (file) { const reader = new FileReader(); reader.onload = (event) => cm.loadProject(event.target.result); reader.readAsText(file); }
+        if (file) { 
+            const reader = new FileReader(); 
+            reader.onload = (event) => cm.loadProject(event.target.result); 
+            reader.readAsText(file); 
+        }
     });
     document.getElementById('canvasSizeSelect').addEventListener('change', (e) => cm.setCanvasSize(e.target.value));
     document.getElementById('exportPngBtn').addEventListener('click', () => cm.exportToPNG());
@@ -113,32 +119,61 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('openAiImageModalBtn').addEventListener('click', () => { aiImageModal.style.display = 'flex'; });
     document.getElementById('closeAiImageModal').addEventListener('click', () => { aiImageModal.style.display = 'none'; });
 
-    // AI Image Generation
+    // AI Image Generation - FIXED AND REWRITTEN
     generateImageBtn.addEventListener('click', async () => {
         const prompt = document.getElementById('aiImagePrompt').value;
-        if (!prompt) { showToast("Please enter a prompt."); return; }
+        if (!prompt) { 
+            showToast("Please enter a prompt to generate an image."); 
+            return; 
+        }
         
         const loader = document.getElementById('aiImageLoader');
         const imageEl = document.getElementById('aiGeneratedImage');
         const addBtn = document.getElementById('addAiImageToCanvasBtn');
         
-        loader.style.display = 'block'; imageEl.style.display = 'none'; addBtn.style.display = 'none';
-        generateImageBtn.disabled = true; generateImageBtn.textContent = "Generating...";
+        // Update UI to show loading state
+        loader.style.display = 'block'; 
+        imageEl.style.display = 'none'; 
+        addBtn.style.display = 'none';
+        generateImageBtn.disabled = true; 
+        generateImageBtn.textContent = "Generating...";
 
-        const apiKey = ""; // API key is handled by the environment
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
-        const payload = { instances: [{ prompt: prompt }], parameters: { "sampleCount": 1 } };
+        const apiKey = ""; // API key is handled by the execution environment
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`;
+        
+        // This is the correct payload structure for the image generation model
+        const payload = {
+            contents: [{
+                parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+                responseModalities: ['IMAGE']
+            },
+        };
 
         try {
-            const result = await fetchWithBackoff(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (result.predictions && result.predictions[0]?.bytesBase64Encoded) {
-                const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                imageEl.src = imageUrl; imageEl.style.display = 'block'; addBtn.style.display = 'block';
-            } else { throw new Error("No image data in API response."); }
+            const result = await fetchWithBackoff(apiUrl, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(payload) 
+            });
+            
+            // Extract the base64 image data from the correct place in the response
+            const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+
+            if (base64Data) {
+                const imageUrl = `data:image/png;base64,${base64Data}`;
+                imageEl.src = imageUrl;
+                imageEl.style.display = 'block';
+                addBtn.style.display = 'block';
+            } else {
+                throw new Error("No image data was found in the API response.");
+            }
         } catch (error) { 
             console.error('Image generation failed:', error); 
-            showToast('Image generation failed. Please try again.'); 
+            showToast('Image generation failed. Please check the console and try again.'); 
         } finally { 
+            // Reset UI from loading state
             loader.style.display = 'none'; 
             generateImageBtn.disabled = false; 
             generateImageBtn.textContent = "Generate"; 
@@ -147,28 +182,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('addAiImageToCanvasBtn').addEventListener('click', () => {
         const imageUrl = document.getElementById('aiGeneratedImage').src;
-        if(imageUrl) cm.addImage(imageUrl);
+        if (imageUrl) {
+            cm.addImage(imageUrl);
+        }
         aiImageModal.style.display = 'none';
     });
 
     // AI Text Suggestions
     document.getElementById('generateTextBtn').addEventListener('click', async () => {
         const prompt = document.getElementById('aiTextPrompt').value;
-        if (!prompt) { showToast("Please enter a topic for text ideas."); return; }
+        if (!prompt) { 
+            showToast("Please enter a topic for text ideas."); 
+            return; 
+        }
         
         const suggestionsContainer = document.getElementById('aiTextSuggestions');
-        suggestionsContainer.innerHTML = '<li>Loading...</li>';
+        suggestionsContainer.innerHTML = '<li>Loading suggestions...</li>';
 
-        const apiKey = ""; // API key is handled by the environment
+        const apiKey = ""; // API key is handled by the execution environment
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
         const userQuery = `Generate 5 short, catchy phrases for a sticker related to "${prompt}". Each phrase should be less than 8 words. Return them as a numbered list.`;
         const payload = { contents: [{ parts: [{ text: userQuery }] }] };
 
         try {
-            const result = await fetchWithBackoff(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const result = await fetchWithBackoff(apiUrl, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(payload) 
+            });
+            
             const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
-                const suggestions = text.split('\n').map(s => s.replace(/^\d+\.\s*/, '').trim()).filter(s => s);
+                // Process the response text into a clean list
+                const suggestions = text.split('\n')
+                                      .map(s => s.replace(/^\d+\.\s*/, '').trim())
+                                      .filter(s => s);
                 suggestionsContainer.innerHTML = '';
                 suggestions.forEach(suggestion => {
                     const li = document.createElement('li');
@@ -176,17 +224,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     li.classList.add('ai-suggestion-item');
                     suggestionsContainer.appendChild(li);
                 });
-            } else { throw new Error("No text content in API response."); }
+            } else { 
+                throw new Error("No text content in API response."); 
+            }
         } catch (error) { 
             console.error('Text generation failed:', error); 
             showToast('Text generation failed.'); 
-            suggestionsContainer.innerHTML = '<li>Failed to load.</li>'; 
+            suggestionsContainer.innerHTML = '<li>Failed to load suggestions.</li>'; 
         }
     });
 
+    // Event listener for clicking on a text suggestion
     document.getElementById('aiTextSuggestions').addEventListener('click', (e) => {
         if (e.target?.matches('li.ai-suggestion-item')) {
             cm.updateTextContent(e.target.textContent);
         }
     });
 });
+
