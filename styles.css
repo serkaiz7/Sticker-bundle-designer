@@ -1,7 +1,7 @@
 /* Kai Sticker Maker — styles (responsive + animated) */
 
 :root{
-  --bg:#071029;
+  --bg:#041426;
   --panel:#071a2b;
   --card:#0b1724;
   --muted:#9fb0c6;
@@ -43,6 +43,17 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#041426 0%, #07
 .right{display:flex;flex-direction:column;gap:12px}
 .stage{width:100%;height:640px;background:linear-gradient(180deg,#fbfdff 0%, #f0f6fb 100%);border-radius:10px;overflow:hidden;border:1px solid rgba(2,6,23,0.06);display:flex;align-items:center;justify-content:center;position:relative}
 
+/* stage-parent styling: this is the container where the Konva stage DOM element sits.
+   We will scale the Konva container to fit inside this element while the Konva stage
+   internal pixel dimensions remain print-size (A4 at DPI) */
+#stage-parent{display:flex;align-items:center;justify-content:center;padding:10px}
+.stage > div { /* the Konva container is dynamically inserted as a child div */
+  box-shadow: 0 10px 30px rgba(2,6,23,0.2);
+  border-radius:6px;
+  background:white;
+  transform-origin: top left; /* important for scaling */
+}
+
 /* thumbnails */
 .thumb-grid{display:flex;flex-wrap:wrap;gap:8px}
 .thumb{width:64px;height:64px;object-fit:cover;border-radius:8px;border:2px solid rgba(255,255,255,0.04)}
@@ -73,9 +84,12 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#041426 0%, #07
 @keyframes floaty { 0%{ transform:translateY(0) } 50%{ transform:translateY(-6px) } 100%{ transform:translateY(0) } }
 .logo{animation:floaty 3.8s ease-in-out infinite}
 
-/* nice focus */
+/* focus */
 button:focus, input:focus{outline:2px solid rgba(124,58,237,0.24);outline-offset:2px}
 
 /* credits */
 .credits{margin-top:auto;color:var(--muted);font-size:12px}
 .muted{color:var(--muted);font-size:13px}
+
+/* small helper for open panels on mobile */
+#left-panel.open, #right-panel.open { box-shadow: 0 16px 48px rgba(2,6,23,0.35); transform: translateY(-6px); transition: transform .18s ease; }
