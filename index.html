@@ -4,20 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kai Sticker Maker - Pro AI</title>
-    <!-- External Libraries -->
     <script src="https://unpkg.com/konva@9.3.14/konva.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <!-- Fonts and Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Local Stylesheet -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-    <!-- TOP TOOLBAR -->
     <div class="top-toolbar">
         <div class="toolbar-group">
             <button id="saveBtn" title="Save Project">Save</button>
@@ -58,11 +54,8 @@
         </div>
     </div>
 
-    <!-- MAIN CONTENT -->
     <div class="main-container">
-        <!-- LEFT SIDEBAR -->
         <div class="sidebar">
-            <!-- Properties Panel -->
             <div id="propertiesPanel" class="sidebar-section" style="display:none;">
                 <h3>Element Properties</h3>
                 <div id="text-properties" style="display:none;">
@@ -89,8 +82,7 @@
                     <ul id="aiTextSuggestions"></ul>
                 </div>
             </div>
-             <!-- Tools Panel -->
-            <div class="sidebar-section">
+             <div class="sidebar-section">
                 <h3>Tools</h3>
                 <div class="button-group">
                      <button id="deleteBtn" title="Delete Selected (Delete)">Delete</button>
@@ -100,17 +92,14 @@
             </div>
         </div>
 
-        <!-- CANVAS -->
         <div id="canvas-area" class="canvas-area">
             <div id="container"></div>
         </div>
     </div>
     
-    <!-- Hidden Inputs for file dialogs -->
     <input type="file" id="fileInput" accept="image/*" multiple class="hidden-input">
     <input type="file" id="loadInput" accept=".json" class="hidden-input">
 
-    <!-- Preview Modal -->
     <div id="previewModal" class="modal">
         <div class="modal-content">
             <span id="closePreview" class="close-modal">&times;</span>
@@ -119,7 +108,6 @@
         </div>
     </div>
     
-    <!-- AI Image Generation Modal -->
     <div id="aiImageModal" class="modal">
         <div class="modal-content">
             <span id="closeAiImageModal" class="close-modal">&times;</span>
@@ -136,12 +124,9 @@
         </div>
     </div>
     
-    <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
-    <!-- Local JavaScript -->
     <script type="module" src="app.js"></script>
 
 </body>
 </html>
-
