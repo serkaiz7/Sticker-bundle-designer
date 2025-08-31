@@ -1,72 +1,116 @@
 <!doctype html>
+<html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Sticker Bundle Designer — Prototype</title>
-<link rel="stylesheet" href="styles.css">
-<!-- Konva for canvas layers and easy interactivity -->
-<script src="https://unpkg.com/konva@9/konva.min.js"></script>
-<!-- Clipper.js for polygon offset (die-cut offset) -->
-<script src="https://unpkg.com/jsclipper@6.4.2/clipper_unminified.js"></script>
-<!-- FileSaver for downloads -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Kai Sticker Maker</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Libraries (CDN) -->
+  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+  <script src="https://unpkg.com/jsclipper@6.4.2/clipper_unminified.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
-<div id="app">
-<header>
-<h1>Sticker Bundle Designer (Prototype)</h1>
-<div class="toolbar">
-<input id="file-input" type="file" multiple accept="image/*">
-<button id="auto-arrange">Auto-Arrange (Grid)</button>
-<button id="trace-selected">Trace Outline</button>
-<button id="toggle-cut">Toggle Cut Lines</button>
-<button id="save-project">Save Project</button>
-<input id="load-input" type="file" accept="application/json" style="display:none">
-<button id="load-project">Load Project</button>
-<button id="export-png">Export PNG</button>
-<button id="export-svg">Export SVG</button>
-</div>
-</header>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">🟣</div>
+        <div>
+          <h1>Kai Sticker Maker</h1>
+          <p class="subtitle">Create die-cut sticker bundles — quick, pretty, and printable</p>
+        </div>
+      </div>
 
+      <div class="controls">
+        <label class="file-btn">
+          <input id="file-input" type="file" multiple accept="image/*" />
+          <span>Upload Images</span>
+        </label>
 
-<main>
-<aside class="left">
-<h2>Assets</h2>
-<div id="thumbnails"></div>
-<h3>Presets</h3>
-<button class="preset" data-preset="3x3">Grid 3x3</button>
-<button class="preset" data-preset="row-6">Row of 6</button>
-</aside>
+        <div class="group-desktop">
+          <button id="auto-arrange" class="btn">Auto-Arrange</button>
+          <button id="trace-selected" class="btn">Trace</button>
+          <button id="toggle-cut" class="btn">Cut lines</button>
+          <button id="save-project" class="btn primary">Save</button>
+          <button id="load-project" class="btn">Load</button>
+          <button id="export-png" class="btn accent">Export PNG</button>
+          <button id="export-svg" class="btn">Export SVG</button>
+        </div>
 
+        <!-- mobile quick actions -->
+        <div class="mobile-actions">
+          <button id="open-actions" class="btn">⚙️</button>
+        </div>
+      </div>
+    </header>
 
-<section class="canvas-area">
-<div id="stage-parent"></div>
-</section>
+    <main class="layout">
+      <aside class="sidebar left" id="left-panel">
+        <h2>Assets</h2>
+        <div id="thumbnails" class="thumb-grid"></div>
 
+        <h3>Presets</h3>
+        <div class="preset-row">
+          <button class="preset btn" data-preset="3x3">Grid 3×3</button>
+          <button class="preset btn" data-preset="row-6">Row of 6</button>
+        </div>
 
-<aside class="right">
-<h2>Layer Properties</h2>
-<div id="properties">
-<div id="no-selection">No layer selected</div>
-<div id="layer-controls" style="display:none">
-<label>Lock: <input type="checkbox" id="prop-lock"></label>
-<label>Rotation: <input type="range" id="prop-rotation" min="0" max="360"></label>
-<label>Scale: <input type="range" id="prop-scale" min="0.1" max="3" step="0.01"></label>
-<label>Label text: <input id="prop-text"></label>
-<button id="make-text">Make Text Sticker</button>
-<button id="delete-layer">Delete</button>
-</div>
-</div>
-</aside>
-</main>
+        <hr />
 
+        <h3>Selected</h3>
+        <div id="no-selection" class="muted">No layer selected</div>
+        <div id="layer-controls" class="props" hidden>
+          <label>Lock <input id="prop-lock" type="checkbox"></label>
+          <label>Rotation <input id="prop-rotation" type="range" min="0" max="360"></label>
+          <label>Scale <input id="prop-scale" type="range" min="0.1" max="3" step="0.01"></label>
+          <label>Label <input id="prop-text" type="text" placeholder="Text label"></label>
+          <div class="props-rows">
+            <button id="make-text" class="btn">Make Text</button>
+            <button id="delete-layer" class="btn danger">Delete</button>
+          </div>
+        </div>
+      </aside>
 
-<footer>
-<small>Prototype — exports basic PNG/SVG, tracing uses alpha-threshold marching-squares, offset via Clipper.js (approx).</small>
-</footer>
-</div>
+      <section class="canvas-wrap">
+        <div id="stage-parent" class="stage"></div>
 
+        <div class="canvas-bottom">
+          <div class="scale-helpers">
+            <small>Hover + wheel to resize (desktop). On mobile use the Scale slider above.</small>
+          </div>
+        </div>
+      </section>
 
-<script type="module" src="app.js"></script>
+      <aside class="sidebar right" id="right-panel">
+        <h2>Export Settings</h2>
+        <label>Canvas DPI
+          <select id="export-dpi">
+            <option value="150">150</option>
+            <option value="300" selected>300 (print)</option>
+            <option value="600">600</option>
+          </select>
+        </label>
+
+        <label>Bleed (mm) <input id="export-bleed" type="number" min="0" max="20" value="3"></label>
+
+        <h3>Project</h3>
+        <div class="project-actions">
+          <button id="save-project-2" class="btn">Save JSON</button>
+          <input id="load-input" type="file" accept="application/json" style="display:none">
+          <button id="load-project-2" class="btn">Load JSON</button>
+        </div>
+
+        <div class="credits">
+          <small>Made with ❤️ — Kai Sticker Maker</small>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- App script (module) -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
