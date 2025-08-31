@@ -15,13 +15,17 @@
 </head>
 <body>
     <div class="toolbar">
-        <button id="uploadBtn">Upload Image</button>
+        <button id="uploadBtn">Upload Images</button>
         <button id="addTextBtn">Add Text</button>
         <select id="presetSelect">
             <option value="">Add Preset</option>
             <option value="grid">Grid</option>
             <option value="circle">Circle</option>
             <option value="label">Label</option>
+            <option value="rectangle">Rectangle</option>
+            <option value="ellipse">Ellipse</option>
+            <option value="triangle">Triangle</option>
+            <option value="star">Star</option>
         </select>
         <button id="undoBtn">Undo</button>
         <button id="redoBtn">Redo</button>
@@ -50,7 +54,7 @@
         </div>
     </div>
     <div id="container" class="canvas-container"></div>
-    <input type="file" id="fileInput" accept="image/*" style="display:none;">
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
     <input type="file" id="loadInput" accept=".json" style="display:none;">
 
     <!-- Preview Modal -->
