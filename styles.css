@@ -1,63 +1,151 @@
-/* Kai Sticker Maker — polished Canva-like UI (responsive) */
-:root{
-  --bg:#081227; --panel:#0d1b2a; --muted:#9fb0c6; --accent:#6f56f9; --accent-2:#06b6d4;
-  --card:#0f2333; --glass: rgba(255,255,255,0.03); --radius:12px;
-  --maxw:1280px;
+/* General */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #ece9e6, #ffffff);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;background:linear-gradient(180deg,#041427 0%, #081c2b 100%);color:#e6f3ff;-webkit-font-smoothing:antialiased}
-#app{max-width:var(--maxw);margin:14px auto;padding:12px;display:flex;flex-direction:column;gap:12px}
 
-/* Topbar */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:14px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);box-shadow:0 10px 30px rgba(2,6,23,0.6)}
-.brand{display:flex;gap:12px;align-items:center}
-.logo{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
-.titles h1{margin:0;font-size:18px}
-.subtitle{margin:0;font-size:12px;color:var(--muted)}
-.top-actions{display:flex;gap:10px;align-items:center}
-.upload-btn{background:var(--glass);padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
-.action-buttons button{background:transparent;border:1px solid rgba(255,255,255,0.05);color:inherit;padding:8px 10px;border-radius:8px;cursor:pointer}
-.action-buttons button.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:none;padding:8px 12px}
+h1 {
+  font-size: 1.5rem;
+  margin: 0;
+  background: linear-gradient(90deg, #ff7e5f, #feb47b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Header Toolbar */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .8rem 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.toolbar button, .upload-btn {
+  margin: 0 .3rem;
+  padding: .5rem 1rem;
+  border: none;
+  border-radius: 12px;
+  background: #ff7e5f;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.toolbar button:hover, .upload-btn:hover {
+  background: #feb47b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
 
 /* Workspace */
-.workspace{display:grid;grid-template-columns:260px 1fr 320px;gap:12px;align-items:start}
-.panel{background:var(--card);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.02);min-height:520px}
-.left-panel .thumbs{display:flex;flex-wrap:wrap;gap:8px}
-.thumb{width:64px;height:64px;border-radius:8px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)}
-.presets{display:flex;gap:8px;margin-top:6px}
-.panel-head{font-weight:600;margin-bottom:8px}
-.panel-foot{margin-top:auto;color:var(--muted);font-size:13px}
-
-/* Canvas area */
-.canvas-area{display:flex;flex-direction:column;gap:8px;align-items:stretch}
-.canvas-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center}
-.canvas-toolbar .text-controls, .canvas-toolbar .export-controls{display:flex;gap:8px;align-items:center}
-.canvas-toolbar button, .canvas-toolbar select, .canvas-toolbar input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:rgba(255,255,255,0.02);color:inherit}
-.stage-parent{background:linear-gradient(180deg,#f8fafc,#eef6fb);border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:center;min-height:640px;overflow:auto}
-
-/* Konva container will be inserted inside stage-parent.
-   We add a subtle paper-like border and shadow to look premium. */
-.stage-parent > div{background:white;border-radius:6px;box-shadow:0 18px 40px rgba(2,6,23,0.25);transform-origin:top left}
-
-/* Right panel */
-.prop-actions{display:flex;gap:8px;margin-top:8px}
-.small-row{display:flex;gap:8px;margin-top:8px}
-.hintbar{color:var(--muted);font-size:13px;margin-top:8px}
-
-/* Modal */
-.modal{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:none;align-items:center;justify-content:center;z-index:999}
-.modal-inner{width:90%;max-width:1000px;background:#fff;color:#000;border-radius:10px;overflow:hidden}
-.modal-header{display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid #eee}
-.modal-body{padding:12px;display:flex;justify-content:center}
-.modal-footer{display:flex;gap:8px;padding:12px;justify-content:flex-end;border-top:1px solid #eee}
-.close{border:none;background:transparent;font-size:20px;cursor:pointer}
-
-/* small screens */
-@media (max-width:1000px){
-  .workspace{grid-template-columns:1fr;align-items:stretch}
-  .panel{min-height:200px}
-  .stage-parent{min-height:60vh}
+.workspace {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.canvas-container {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  overflow: hidden;
 }
 
-/* fine micro-interactions */
-button:hover{transform:translateY(-2px);transition:all .12s ease}
+/* Floating Text Panel */
+.floating-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255,255,255,0.95);
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.floating-panel.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-20px);
+}
+.floating-panel label {
+  display: block;
+  margin: .5rem 0;
+  font-size: .9rem;
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  justify-content: center;
+  align-items: center;
+}
+.modal-content {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  max-width: 90%;
+  max-height: 90%;
+  text-align: center;
+  animation: slideUp .4s ease;
+}
+.modal-actions {
+  margin-top: 1rem;
+}
+.modal-actions button {
+  margin: 0 .5rem;
+  padding: .6rem 1.2rem;
+  border-radius: 12px;
+  border: none;
+  background: #333;
+  color: white;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.modal-actions button:hover {
+  background: #555;
+}
+.close {
+  float: right;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+/* Footer */
+footer {
+  padding: .5rem;
+  text-align: center;
+  font-size: .8rem;
+  color: #777;
+}
+
+/* Animation */
+@keyframes slideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .toolbar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .5rem;
+  }
+  .floating-panel {
+    right: 10px;
+    top: auto;
+    bottom: 20px;
+  }
+}
