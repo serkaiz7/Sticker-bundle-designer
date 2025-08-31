@@ -1,82 +1,63 @@
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-  background: #f5f7fa;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* Kai Sticker Maker — polished Canva-like UI (responsive) */
+:root{
+  --bg:#081227; --panel:#0d1b2a; --muted:#9fb0c6; --accent:#6f56f9; --accent-2:#06b6d4;
+  --card:#0f2333; --glass: rgba(255,255,255,0.03); --radius:12px;
+  --maxw:1280px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;background:linear-gradient(180deg,#041427 0%, #081c2b 100%);color:#e6f3ff;-webkit-font-smoothing:antialiased}
+#app{max-width:var(--maxw);margin:14px auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+
+/* Topbar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:14px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);box-shadow:0 10px 30px rgba(2,6,23,0.6)}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.titles h1{margin:0;font-size:18px}
+.subtitle{margin:0;font-size:12px;color:var(--muted)}
+.top-actions{display:flex;gap:10px;align-items:center}
+.upload-btn{background:var(--glass);padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+.action-buttons button{background:transparent;border:1px solid rgba(255,255,255,0.05);color:inherit;padding:8px 10px;border-radius:8px;cursor:pointer}
+.action-buttons button.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:none;padding:8px 12px}
+
+/* Workspace */
+.workspace{display:grid;grid-template-columns:260px 1fr 320px;gap:12px;align-items:start}
+.panel{background:var(--card);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.02);min-height:520px}
+.left-panel .thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.thumb{width:64px;height:64px;border-radius:8px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)}
+.presets{display:flex;gap:8px;margin-top:6px}
+.panel-head{font-weight:600;margin-bottom:8px}
+.panel-foot{margin-top:auto;color:var(--muted);font-size:13px}
+
+/* Canvas area */
+.canvas-area{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.canvas-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.canvas-toolbar .text-controls, .canvas-toolbar .export-controls{display:flex;gap:8px;align-items:center}
+.canvas-toolbar button, .canvas-toolbar select, .canvas-toolbar input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:rgba(255,255,255,0.02);color:inherit}
+.stage-parent{background:linear-gradient(180deg,#f8fafc,#eef6fb);border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:center;min-height:640px;overflow:auto}
+
+/* Konva container will be inserted inside stage-parent.
+   We add a subtle paper-like border and shadow to look premium. */
+.stage-parent > div{background:white;border-radius:6px;box-shadow:0 18px 40px rgba(2,6,23,0.25);transform-origin:top left}
+
+/* Right panel */
+.prop-actions{display:flex;gap:8px;margin-top:8px}
+.small-row{display:flex;gap:8px;margin-top:8px}
+.hintbar{color:var(--muted);font-size:13px;margin-top:8px}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:none;align-items:center;justify-content:center;z-index:999}
+.modal-inner{width:90%;max-width:1000px;background:#fff;color:#000;border-radius:10px;overflow:hidden}
+.modal-header{display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid #eee}
+.modal-body{padding:12px;display:flex;justify-content:center}
+.modal-footer{display:flex;gap:8px;padding:12px;justify-content:flex-end;border-top:1px solid #eee}
+.close{border:none;background:transparent;font-size:20px;cursor:pointer}
+
+/* small screens */
+@media (max-width:1000px){
+  .workspace{grid-template-columns:1fr;align-items:stretch}
+  .panel{min-height:200px}
+  .stage-parent{min-height:60vh}
 }
 
-header {
-  background: linear-gradient(135deg, #ff6b6b, #f7b733);
-  color: white;
-  text-align: center;
-  width: 100%;
-  padding: 10px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-}
-
-h1 {
-  margin: 0;
-  font-size: 1.8em;
-}
-
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin: 10px;
-}
-
-button, input, select {
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #eee;
-}
-
-.canvas-container {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  overflow: auto;
-  padding: 10px;
-}
-
-#container {
-  border: 2px dashed #aaa;
-  background: white;
-  max-width: 100%;
-}
-
-/* Modal Preview */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 10;
-  left: 0; top: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
-}
-
-.modal-content {
-  background: white;
-  margin: 5% auto;
-  padding: 20px;
-  width: 90%;
-  max-width: 800px;
-  text-align: center;
-  border-radius: 10px;
-}
-
-.close {
-  float: right;
-  font-size: 24px;
-  cursor: pointer;
-}
+/* fine micro-interactions */
+button:hover{transform:translateY(-2px);transition:all .12s ease}
