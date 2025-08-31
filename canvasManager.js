@@ -168,48 +168,179 @@ export class CanvasManager {
         this.layer.batchDraw();
     }
 
-    attachToPreset(node) {
-        if (!(node instanceof Konva.Image)) return;
-        this.layer.children.forEach(child => {
-            if (child instanceof Konva.Group && child.getAttr('isPreset') && node.intersects(child.getClientRect())) {
-                const pos = node.absolutePosition();
-                node.moveTo(child);
-                const groupPos = child.absolutePosition();
-                node.position({ x: pos.x - groupPos.x, y: pos.y - groupPos.y });
-                // Fit to group bounds
-                const bounds = child.getClientRect({ relativeTo: this.layer, skipTransform: true });
-                const imgWidth = node.width() * node.scaleX();
-                const imgHeight = node.height() * node.scaleY();
-                const scaleX = child.clipWidth() / imgWidth;
-                const scaleY = child.clipHeight() / imgHeight;
-                const scale = Math.min(scaleX, scaleY);
-                node.scale({ x: scale, y: scale });
-                node.position({ x: 0, y: 0 }); // Align to top-left of clip
-                this.layer.draw();
-                this.saveState();
+    findClipGroup(node) {
+        let targetClipGroup = null;
+        this.layer.find('Group').forEach(g => {
+            if (g.getAttr('isClipGroup') && node.intersects(g.getClientRect())) {
+                targetClipGroup = g;
             }
         });
+        return targetClipGroup;
+    }
+
+    attachToPreset(node) {
+        if (!(node instanceof Konva.Image)) return;
+        const clipGroup = this.findClipGroup(node);
+        if (clipGroup) {
+            const pos = node.absolutePosition();
+            node.moveTo(clipGroup);
+            const groupPos = clipGroup.absolutePosition();
+            node.position({ x: pos.x - groupPos.x, y: pos.y - groupPos.y });
+            // Fit to group bounds
+            const clipW = clipGroup.clipWidth();
+            const clipH = clipGroup.clipHeight();
+            const imgW = node.width();
+            const imgH = node.height();
+            const scaleX = clipW / imgW;
+            const scaleY = clipH / imgH;
+            const scale = Math.min(scaleX, scaleY);
+            node.scale({ x: scale, y: scale });
+            node.position({
+                x: (clipW - imgW * scale) / 2,
+                y: (clipH - imgH * scale) / 2
+            });
+            this.layer.draw();
+            this.saveState();
+        }
     }
 
     addPreset(type) {
         let preset;
+        let topGroup;
         let visual;
         let clipWidth = 200;
         let clipHeight = 200;
-        if (type === 'grid') {
-            preset = new Konva.Group({ x: 50, y: 50, draggable: true });
-            preset.setAttr('isPreset', true);
-            for (let i = 0; i < 3; i++) {
-                for (let j = 0; j < 3; j++) {
-                    preset.add(new Konva.Rect({
-                        x: i * 100,
-                        y: j * 100,
-                        width: 100,
-                        height: 100,
-                        stroke: 'black',
-                    }));
+        if (type.startsWith('collage') || type === 'grid') {
+            topGroup = new Konva.Group({
+                x: 50,
+                y: 50,
+                draggable: true,
+            });
+            topGroup.setAttr('isPreset', true);
+            if (type === 'grid') {
+                for (let i = 0; i < 3; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        const cell = new Konva.Group({
+                            x: i * 100,
+                            y: j * 100,
+                            clipX: 0,
+                            clipY: 0,
+                            clipWidth: 100,
+                            clipHeight: 100,
+                        });
+                        cell.setAttr('isClipGroup', true);
+                        cell.add(new Konva.Rect({
+                            x: 0,
+                            y: 0,
+                            width: 100,
+                            height: 100,
+                            stroke: 'black',
+                            strokeWidth: 2
+                        }));
+                        topGroup.add(cell);
+                    }
                 }
+            } else if (type === 'collage2x1') {
+                const left = new Konva.Group({
+                    x: 0,
+                    y: 0,
+                    clipX: 0,
+                    clipY: 0,
+                    clipWidth: 200,
+                    clipHeight: 200,
+                });
+                left.setAttr('isClipGroup', true);
+                left.add(new Konva.Rect({x:0,y:0,width:200,height:200,stroke:'black',strokeWidth:2}));
+                const right = new Konva.Group({
+                    x: 200,
+                    y: 0,
+                    clipX: 0,
+                    clipY: 0,
+                    clipWidth: 200,
+                    clipHeight: 200,
+                });
+                right.setAttr('isClipGroup', true);
+                right.add(new Konva.Rect({x:0,y:0,width:200,height:200,stroke:'black',strokeWidth:2}));
+                topGroup.add(left, right);
+            } else if (type === 'collage1x2') {
+                const top = new Konva.Group({
+                    x: 0,
+                    y: 0,
+                    clipX: 0,
+                    clipY: 0,
+                    clipWidth: 200,
+                    clipHeight: 200,
+                });
+                top.setAttr('isClipGroup', true);
+                top.add(new Konva.Rect({x:0,y:0,width:200,height:200,stroke:'black',strokeWidth:2}));
+                const bottom = new Konva.Group({
+                    x: 0,
+                    y: 200,
+                    clipX: 0,
+                    clipY: 0,
+                    clipWidth: 200,
+                    clipHeight: 200,
+                });
+                bottom.setAttr('isClipGroup', true);
+                bottom.add(new Konva.Rect({x:0,y:0,width:200,height:200,stroke:'black',strokeWidth:2}));
+                topGroup.add(top, bottom);
+            } else if (type === 'collage2x2') {
+                for (let i = 0; i < 2; i++) {
+                    for (let j = 0; j < 2; j++) {
+                        const cell = new Konva.Group({
+                            x: i * 150,
+                            y: j * 150,
+                            clipX: 0,
+                            clipY: 0,
+                            clipWidth: 150,
+                            clipHeight: 150,
+                        });
+                        cell.setAttr('isClipGroup', true);
+                        cell.add(new Konva.Rect({
+                            x: 0,
+                            y: 0,
+                            width: 150,
+                            height: 150,
+                            stroke: 'black',
+                            strokeWidth: 2
+                        }));
+                        topGroup.add(cell);
+                    }
+                }
+            } else if (type === 'collageTriptych') {
+                const left = new Konva.Group({
+                    x: 0,
+                    y: 0,
+                    clipX: 0,
+                    clipY: 0,
+                    clipWidth: 150,
+                    clipHeight: 300,
+                });
+                left.setAttr('isClipGroup', true);
+                left.add(new Konva.Rect({x:0,y:0,width:150,height:300,stroke:'black',strokeWidth:2}));
+                const middle = new Konva.Group({
+                    x: 150,
+                    y: 0,
+                    clipX: 0,
+                    clipY: 0,
+                    clipWidth: 200,
+                    clipHeight: 300,
+                });
+                middle.setAttr('isClipGroup', true);
+                middle.add(new Konva.Rect({x:0,y:0,width:200,height:300,stroke:'black',strokeWidth:2}));
+                const right = new Konva.Group({
+                    x: 350,
+                    y: 0,
+                    clipX: 0,
+                    clipY: 0,
+                    clipWidth: 150,
+                    clipHeight: 300,
+                });
+                right.setAttr('isClipGroup', true);
+                right.add(new Konva.Rect({x:0,y:0,width:150,height:300,stroke:'black',strokeWidth:2}));
+                topGroup.add(left, middle, right);
             }
+            preset = topGroup;
         } else {
             preset = new Konva.Group({
                 x: 50,
@@ -221,6 +352,7 @@ export class CanvasManager {
                 clipHeight: clipHeight,
             });
             preset.setAttr('isPreset', true);
+            preset.setAttr('isClipGroup', true);
             switch (type) {
                 case 'circle':
                     clipWidth = 200;
@@ -229,6 +361,7 @@ export class CanvasManager {
                     preset.clipFunc((ctx) => {
                         ctx.arc(100, 100, 100, 0, Math.PI * 2, false);
                     });
+                    preset.setAttr('keepRatio', true);
                     break;
                 case 'label':
                     preset = new Konva.Label({ x: 50, y: 50, draggable: true });
@@ -251,11 +384,12 @@ export class CanvasManager {
                     preset.clipFunc((ctx) => {
                         ctx.ellipse(100, 50, 100, 50, 0, 0, Math.PI * 2);
                     });
+                    preset.setAttr('keepRatio', true);
                     break;
                 case 'triangle':
                     clipWidth = 200;
-                    clipHeight = 200;
-                    visual = new Konva.RegularPolygon({ x: 100, y: 100, sides: 3, radius: 100, stroke: 'black', strokeWidth: 2 });
+                    clipHeight = 173; // approx for equilateral
+                    visual = new Konva.RegularPolygon({ x: 100, y: 86.5, sides: 3, radius: 100, stroke: 'black', strokeWidth: 2 });
                     preset.clipFunc((ctx) => {
                         ctx.beginPath();
                         ctx.moveTo(100, 0);
@@ -263,13 +397,13 @@ export class CanvasManager {
                         ctx.lineTo(200, 173);
                         ctx.closePath();
                     });
+                    preset.setAttr('keepRatio', true);
                     break;
                 case 'star':
                     clipWidth = 200;
                     clipHeight = 200;
                     visual = new Konva.Star({ x: 100, y: 100, numPoints: 5, innerRadius: 40, outerRadius: 100, stroke: 'black', strokeWidth: 2 });
                     preset.clipFunc((ctx) => {
-                        // Approximate clip for star
                         ctx.beginPath();
                         for (let i = 0; i < 10; i++) {
                             const radius = i % 2 === 0 ? 100 : 40;
@@ -278,32 +412,15 @@ export class CanvasManager {
                         }
                         ctx.closePath();
                     });
+                    preset.setAttr('keepRatio', true);
                     break;
             }
             preset.clipWidth(clipWidth);
             preset.clipHeight(clipHeight);
-            preset.add(visual);
+            if (visual) preset.add(visual);
         }
         if (preset) {
             preset.on('dragmove', () => this.snapToGrid(preset));
-            preset.on('transform', () => {
-                // Update clip dimensions on scale
-                const newScaleX = preset.scaleX();
-                const newScaleY = preset.scaleY();
-                preset.clipWidth(clipWidth * newScaleX);
-                preset.clipHeight(clipHeight * newScaleY);
-                if (visual instanceof Konva.Circle) {
-                    visual.x(100 * newScaleX);
-                    visual.y(100 * newScaleY);
-                    visual.radius(100 * Math.min(newScaleX, newScaleY));
-                } else if (visual instanceof Konva.Ellipse) {
-                    visual.x(100 * newScaleX);
-                    visual.y(50 * newScaleY);
-                    visual.radiusX(100 * newScaleX);
-                    visual.radiusY(50 * newScaleY);
-                } // Add similar for others if needed
-                this.layer.batchDraw();
-            });
             preset.on('transformend', () => this.saveState());
             this.layer.add(preset);
             this.layer.draw();
@@ -319,6 +436,7 @@ export class CanvasManager {
         } else {
             this.tr.nodes([e.target]);
             this.selectedNodes = [e.target];
+            this.tr.keepRatio(!!e.target.getAttr('keepRatio'));
             if (e.target instanceof Konva.Text) {
                 document.getElementById('propertiesPanel').style.display = 'block';
                 document.getElementById('fontFamily').value = e.target.fontFamily();
