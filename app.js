@@ -3,14 +3,22 @@ import { CanvasManager } from './canvasManager.js';
 
 const cm = new CanvasManager('container');
 
-// Upload image
+// Upload images
 document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
 document.getElementById('fileInput').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => cm.addImage(event.target.result);
-        reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (files.length > 0) {
+        Array.from(files).forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                cm.addImage(event.target.result, () => {
+                    if (index === files.length - 1) {
+                        e.target.value = ''; // Reset input
+                    }
+                });
+            };
+            reader.readAsDataURL(file);
+        });
     }
 });
 
@@ -42,7 +50,7 @@ document.getElementById('loadInput').addEventListener('change', (e) => {
 // Preview
 const modal = document.getElementById('previewModal');
 document.getElementById('previewBtn').addEventListener('click', () => {
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
     cm.getPreviewStage();
 });
 document.getElementById('closePreview').addEventListener('click', () => {
