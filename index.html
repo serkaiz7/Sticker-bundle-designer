@@ -1,63 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kai Sticker Maker</title>
-  <link rel="stylesheet" href="style.css" />
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
-  <!-- Konva.js -->
-  <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
-  <!-- FileSaver.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-  <!-- jsPDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-</head>
-<body>
-  <!-- Header -->
-  <header class="header">
-    <div class="logo">Kai Sticker Maker</div>
-    <nav class="toolbar">
-      <button id="undoBtn">⎌ Undo</button>
-      <button id="redoBtn">↻ Redo</button>
-      <button id="addTextBtn">＋ Text</button>
-      <label class="uploadBtn">
-        Upload <input type="file" id="uploadImages" multiple hidden />
-      </label>
-      <button id="toggleGridBtn">☰ Grid</button>
-      <button id="previewBtn">👁 Preview</button>
-      <button id="downloadBtn">⬇ Download</button>
-      <button id="printBtn">🖨 Print</button>
-    </nav>
-    <button class="hamburger">☰</button>
-  </header>
+<!doctype html>
+<input id="fontColor" type="color" value="#111111">
+<button id="boldBtn">B</button>
+<button id="italicBtn">I</button>
+<button id="underlineBtn">U</button>
+</div>
+</div>
 
-  <!-- Side Toolbar -->
-  <aside class="side-toolbar">
-    <h3>Presets</h3>
-    <button id="gridPresetBtn">Sticker Grid</button>
-    <button id="circlePresetBtn">Circle Bundle</button>
-    <button id="labelsPresetBtn">Labels</button>
-  </aside>
 
-  <!-- Main Canvas Area -->
-  <main class="workspace">
-    <div id="container"></div>
-  </main>
+<div class="panel-section small">
+<h4>Export</h4>
+<button id="exportPNG">High-res PNG</button>
+<button id="exportPDF">Export PDF</button>
+</div>
 
-  <!-- Preview Modal -->
-  <div id="previewModal" class="modal hidden">
-    <div class="modal-content">
-      <span id="closePreview" class="close">&times;</span>
-      <h2>Preview</h2>
-      <canvas id="previewCanvas"></canvas>
-      <button id="downloadPNG">Download PNG</button>
-      <button id="downloadPDF">Download PDF</button>
-    </div>
-  </div>
 
-  <script src="canvasManager.js"></script>
-  <script src="app.js"></script>
+<div class="panel-section small">
+<h4>Shortcuts</h4>
+<ul class="shortcuts">
+<li>Ctrl/Cmd + C: copy</li>
+<li>Ctrl/Cmd + V: paste</li>
+<li>Ctrl/Cmd + Z: undo</li>
+<li>Ctrl/Cmd + Shift + Z / Y: redo</li>
+<li>Del / Backspace: delete</li>
+</ul>
+</div>
+</aside>
+</main>
+
+
+<!-- Preview Modal -->
+<div id="previewModal" class="modal" aria-hidden="true">
+<div class="modal-inner">
+<button class="close" id="closePreview">✕</button>
+<div id="previewContent"></div>
+<div class="modal-actions">
+<button id="previewDownloadPNG">Download PNG</button>
+<button id="previewDownloadPDF">Download PDF</button>
+</div>
+</div>
+</div>
+
+
+<footer class="footer">Made with ❤️ — Kai Sticker Maker</footer>
+
+
+<!-- App scripts -->
+<script src="canvasManager.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
