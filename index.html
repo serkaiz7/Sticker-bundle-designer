@@ -1,53 +1,134 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kai Sticker Maker</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Kai Sticker Maker — Pro</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Libraries -->
+  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+  <script src="https://unpkg.com/jsclipper@6.4.2/clipper_unminified.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
-  <header>
-    <h1>Kai Sticker Maker</h1>
-  </header>
+  <div id="app">
 
-  <div class="toolbar">
-    <input type="file" id="imageUpload" multiple accept="image/*">
-    <button id="addTextBtn">➕ Text</button>
-    <select id="fontFamily">
-      <option value="Arial">Arial</option>
-      <option value="Courier New">Courier New</option>
-      <option value="Times New Roman">Times New Roman</option>
-      <option value="Comic Sans MS">Comic Sans</option>
-    </select>
-    <input type="color" id="fontColor" value="#000000">
-    <input type="number" id="fontSize" value="24" min="8" max="120">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">K</div>
+        <div class="titles">
+          <h1>Kai Sticker Maker</h1>
+          <p class="subtitle">Design • Trace • Print — A4-ready</p>
+        </div>
+      </div>
 
-    <button id="undoBtn">↩ Undo</button>
-    <button id="redoBtn">↪ Redo</button>
-    <button id="gridBtn">📐 Grid</button>
-    <button id="previewBtn">👁 Preview</button>
-    <button id="downloadBtn">⬇ Download</button>
-    <button id="printBtn">🖨 Print</button>
-  </div>
+      <div class="top-actions">
+        <label class="upload-btn">
+          <input id="file-input" type="file" accept="image/*" multiple>
+          Upload
+        </label>
 
-  <div class="canvas-container">
-    <div id="container"></div>
-  </div>
+        <div class="search-like" aria-hidden="true">Quick Actions</div>
 
-  <!-- Preview Modal -->
-  <div id="previewModal" class="modal">
-    <div class="modal-content">
-      <span id="closePreview" class="close">&times;</span>
-      <h2>Preview Stickers</h2>
-      <canvas id="previewCanvas"></canvas>
-      <button id="confirmDownload">⬇ Download</button>
-      <button id="confirmPrint">🖨 Print</button>
+        <div class="action-buttons">
+          <button id="undoBtn" title="Undo">↶</button>
+          <button id="redoBtn" title="Redo">↷</button>
+          <button id="gridBtn" title="Toggle grid">Grid</button>
+          <button id="snapBtn" title="Toggle Snap">Snap</button>
+          <button id="traceBtn" title="Trace selected">Trace</button>
+          <button id="deleteBtn" title="Delete selected" class="danger">Delete</button>
+          <button id="previewBtn" class="primary">Preview</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="panel left-panel">
+        <div class="panel-head">Assets</div>
+        <div id="thumbs" class="thumbs"></div>
+
+        <div class="panel-head small">Presets</div>
+        <div class="presets">
+          <button class="preset" data-preset="3x3">Grid 3×3</button>
+          <button class="preset" data-preset="row-6">Row 6</button>
+        </div>
+
+        <div class="panel-foot">Pro features available — tracing optimized for production.</div>
+      </aside>
+
+      <section class="canvas-area">
+        <div class="canvas-toolbar">
+          <div class="text-controls">
+            <button id="textBtn">Text</button>
+            <select id="fontFamily">
+              <option>Inter</option><option>Arial</option><option>Roboto</option><option>Courier New</option><option>Times New Roman</option>
+            </select>
+            <input id="fontSize" type="number" min="8" max="200" value="32">
+            <input id="fontColor" type="color" value="#000000">
+          </div>
+          <div class="export-controls">
+            <select id="dpiSelect"><option value="150">150 DPI</option><option value="300" selected>300 DPI (Print)</option><option value="600">600 DPI</option></select>
+            <button id="downloadBtn">Export PNG</button>
+            <button id="exportSvgBtn">Export SVG</button>
+            <button id="printBtn">Print</button>
+          </div>
+        </div>
+
+        <div id="stage-parent" class="stage-parent">
+          <!-- Konva will insert its container here -->
+        </div>
+
+        <div class="hintbar">A4 canvas — objects snap to guides. Use mouse wheel to scale, drag corners to resize.</div>
+      </section>
+
+      <aside class="panel right-panel" id="rightPanel">
+        <div class="panel-head">Selected</div>
+        <div id="propEmpty" class="muted">No selection</div>
+        <div id="propPanel" hidden>
+          <label>Lock <input type="checkbox" id="propLock"></label>
+          <label>Rotation <input id="propRotation" type="range" min="0" max="360"></label>
+          <label>Scale <input id="propScale" type="range" min="0.1" max="3" step="0.01"></label>
+          <label>Opacity <input id="propOpacity" type="range" min="0" max="1" step="0.01"></label>
+
+          <div class="prop-actions">
+            <button id="bringFront">Bring Front</button>
+            <button id="sendBack">Send Back</button>
+            <button id="duplicate">Duplicate</button>
+          </div>
+        </div>
+
+        <div class="panel-head small">Preview / Print</div>
+        <div class="small-row">
+          <button id="previewBtn2">Preview</button>
+          <button id="printBtn2">Print</button>
+        </div>
+
+        <div class="panel-foot muted">Designed to feel like a modern SaaS creative tool — keyboard shortcuts: Ctrl/Cmd+Z / Ctrl/Cmd+Y</div>
+      </aside>
+    </main>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="modal">
+      <div class="modal-inner">
+        <header class="modal-header">
+          <h3>Preview — Kai Sticker Maker</h3>
+          <button id="closePreview" class="close">✕</button>
+        </header>
+        <div class="modal-body">
+          <canvas id="previewCanvas"></canvas>
+        </div>
+        <footer class="modal-footer">
+          <button id="downloadPreview">Download PNG</button>
+          <button id="printPreview">Print</button>
+        </footer>
+      </div>
     </div>
+
   </div>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
