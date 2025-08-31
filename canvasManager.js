@@ -264,6 +264,19 @@ export class CanvasManager {
         // Re-attach stage-level event listeners which are lost on recreation
         this.attachStageListeners();
 
+        // Re-attach event listeners to all nodes
+        this.stage.find('Image, Text, Rect, Circle, Group').forEach(node => {
+            if (node.draggable()) {
+                node.on('dragmove', () => this.snapToGrid(node));
+                node.on('dragend', () => this.saveState());
+            }
+             node.on('transformend', () => this.saveState());
+             if (node instanceof Konva.Text) {
+                node.on('dblclick dbltap', () => this.editText(node));
+             }
+        });
+
+
         this.stage.draw();
     }
 
@@ -333,4 +346,3 @@ export class CanvasManager {
         if (e.key === 'Delete' || e.key === 'Backspace') this.deleteSelected();
     }
 }
-
