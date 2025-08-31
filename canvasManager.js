@@ -1,643 +1,193 @@
-// canvasManager.js
-export class CanvasManager {
-    constructor(containerId) {
-        this.containerId = containerId;
-        this.stage = new Konva.Stage({
-            container: containerId,
-            width: window.innerWidth,
-            height: window.innerHeight - 100, // Adjust for toolbar
-        });
-        this.layer = new Konva.Layer();
-        this.gridLayer = new Konva.Layer();
-        this.stage.add(this.gridLayer);
-        this.stage.add(this.layer);
+import { CanvasManager } from './canvasManager.js';
 
-        // A4 landscape: 297mm x 210mm at 96dpi ~ 1123x794px
-        this.canvasWidth = 1123;
-        this.canvasHeight = 794;
-        this.scale = 1;
-        this.history = [];
-        this.historyIndex = -1;
-        this.selectedNodes = [];
-        this.tr = new Konva.Transformer({
-            anchorStroke: '#2196F3',
-            anchorFill: 'white',
-            anchorSize: 12,
-            borderStroke: '#2196F3',
-            borderDash: [3, 3],
-            rotateAnchorOffset: 30,
-        });
-        this.layer.add(this.tr);
-        this.gridSize = 20;
-        this.drawGrid();
+document.addEventListener('DOMContentLoaded', () => {
+    const cm = new CanvasManager('container');
 
-        // Events
-        this.stage.on('click tap', (e) => this.handleSelect(e));
-        window.addEventListener('resize', () => this.fitStage());
-        this.stage.on('wheel', (e) => this.handleZoom(e));
-        this.stage.draggable(true); // For pan
-
-        this.saveState();
-        this.fitStage();
+    /**
+     * Shows a toast notification at the bottom of the screen.
+     * @param {string} message - The message to display.
+     */
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); }, 3000);
     }
 
-    drawGrid() {
-        this.gridLayer.removeChildren();
-        for (let i = 0; i < this.canvasWidth / this.gridSize; i++) {
-            this.gridLayer.add(new Konva.Line({
-                points: [i * this.gridSize, 0, i * this.gridSize, this.canvasHeight],
-                stroke: '#e0e0e0',
-                strokeWidth: 1,
-            }));
-        }
-        for (let i = 0; i < this.canvasHeight / this.gridSize; i++) {
-            this.gridLayer.add(new Konva.Line({
-                points: [0, i * this.gridSize, this.canvasWidth, i * this.gridSize],
-                stroke: '#e0e0e0',
-                strokeWidth: 1,
-            }));
-        }
-        this.gridLayer.batchDraw();
-    }
-
-    handleZoom(e) {
-        e.evt.preventDefault();
-        const scaleBy = 1.05;
-        const oldScale = this.stage.scaleX();
-        const pointer = this.stage.getPointerPosition();
-        const mousePointTo = {
-            x: (pointer.x - this.stage.x()) / oldScale,
-            y: (pointer.y - this.stage.y()) / oldScale,
-        };
-        const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
-        this.stage.scale({ x: newScale, y: newScale });
-        const newPos = {
-            x: pointer.x - mousePointTo.x * newScale,
-            y: pointer.y - mousePointTo.y * newScale,
-        };
-        this.stage.position(newPos);
-        this.stage.batchDraw();
-    }
-
-    fitStage() {
-        this.stage.width(window.innerWidth);
-        this.stage.height(window.innerHeight - 100);
-        this.stage.batchDraw();
-    }
-
-    addImage(src, index = 0) {
-        Konva.Image.fromURL(src, (img) => {
-            img.setAttrs({
-                x: 50 + index * 20,
-                y: 50 + index * 20,
-                scaleX: 0.5,
-                scaleY: 0.5,
-                draggable: true,
-            });
-            img.on('dragmove', () => this.snapToGrid(img));
-            img.on('dragend', () => this.attachToPreset(img));
-            img.on('transform', () => this.saveState());
-            this.layer.add(img);
-            this.layer.draw();
-            this.saveState();
-        });
-    }
-
-    addText(text = 'Edit me') {
-        const textNode = new Konva.Text({
-            text,
-            x: 50,
-            y: 50,
-            fontSize: 24,
-            fontFamily: 'Roboto',
-            fill: '#000',
-            draggable: true,
-        });
-        textNode.on('dragmove', () => this.snapToGrid(textNode));
-        textNode.on('dblclick dbltap', () => this.editText(textNode));
-        this.layer.add(textNode);
-        this.layer.draw();
-        this.saveState();
-        return textNode;
-    }
-
-    editText(textNode) {
-        const textPosition = textNode.absolutePosition();
-        const stageBox = this.stage.container().getBoundingClientRect();
-        const areaPosition = {
-            x: stageBox.left + textPosition.x,
-            y: stageBox.top + textPosition.y,
-        };
-        const textarea = document.createElement('textarea');
-        document.body.appendChild(textarea);
-        textarea.value = textNode.text();
-        textarea.style.position = 'absolute';
-        textarea.style.top = areaPosition.y + 'px';
-        textarea.style.left = areaPosition.x + 'px';
-        textarea.style.width = textNode.width() + 'px';
-        textarea.style.height = textNode.height() + 'px';
-        textarea.style.fontSize = textNode.fontSize() + 'px';
-        textarea.style.border = 'none';
-        textarea.style.padding = '0px';
-        textarea.style.margin = '0px';
-        textarea.style.overflow = 'hidden';
-        textarea.style.background = 'none';
-        textarea.style.outline = 'none';
-        textarea.style.resize = 'none';
-        textarea.style.lineHeight = textNode.lineHeight();
-        textarea.style.fontFamily = textNode.fontFamily();
-        textarea.style.transformOrigin = 'left top';
-        textarea.style.textAlign = textNode.align();
-        textarea.style.color = textNode.fill();
-        textarea.focus();
-
-        textarea.addEventListener('keydown', (e) => {
-            if (e.keyCode === 13) {
-                textNode.text(textarea.value);
-                document.body.removeChild(textarea);
-                this.layer.draw();
-                this.saveState();
-            }
-        });
-    }
-
-    snapToGrid(node) {
-        const x = Math.round(node.x() / this.gridSize) * this.gridSize;
-        const y = Math.round(node.y() / this.gridSize) * this.gridSize;
-        node.position({ x, y });
-        this.layer.batchDraw();
-    }
-
-    getIntersectionArea(r1, r2) {
-        const x_overlap = Math.max(0, Math.min(r1.x + r1.width, r2.x + r2.width) - Math.max(r1.x, r2.x));
-        const y_overlap = Math.max(0, Math.min(r1.y + r1.height, r2.y + r2.height) - Math.max(r1.y, r2.y));
-        return x_overlap * y_overlap;
-    }
-
-    findClipGroup(node) {
-        let maxArea = 0;
-        let targetClipGroup = null;
-        this.layer.find('Group').forEach(g => {
-            if (g.getAttr('isClipGroup')) {
-                const area = this.getIntersectionArea(node.getClientRect(), g.getClientRect());
-                if (area > maxArea) {
-                    maxArea = area;
-                    targetClipGroup = g;
+    /**
+     * A fetch wrapper with exponential backoff for retrying failed requests.
+     * @param {string} url - The API endpoint URL.
+     * @param {object} options - The options for the fetch request.
+     * @param {number} [maxRetries=5] - The maximum number of retries.
+     * @returns {Promise<object>} The JSON response from the API.
+     */
+    async function fetchWithBackoff(url, options, maxRetries = 5) {
+        let delay = 1000;
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const response = await fetch(url, options);
+                if (response.ok) return await response.json();
+                // Handle rate limiting specifically
+                if (response.status === 429) { 
+                    await new Promise(res => setTimeout(res, delay)); 
+                    delay *= 2; 
+                } else { 
+                    // Handle other errors
+                    const error = await response.text(); 
+                    throw new Error(`API Error: ${response.status} ${error}`); 
                 }
+            } catch (error) { 
+                if (i === maxRetries - 1) throw error; 
+                await new Promise(res => setTimeout(res, delay)); 
+                delay *= 2; 
             }
-        });
-        return targetClipGroup;
+        }
     }
 
-    attachToPreset(node) {
-        if (!(node instanceof Konva.Image)) return;
-        const clipGroup = this.findClipGroup(node);
-        if (clipGroup) {
-            const pos = node.absolutePosition();
-            node.moveTo(clipGroup);
-            const groupPos = clipGroup.absolutePosition();
-            node.position({ x: pos.x - groupPos.x, y: pos.y - groupPos.y });
-            // Fit to group bounds
-            const clipW = clipGroup.clipWidth();
-            const clipH = clipGroup.clipHeight();
-            const imgW = node.width();
-            const imgH = node.height();
-            const scaleX = clipW / imgW;
-            const scaleY = clipH / imgH;
-            const scale = Math.min(scaleX, scaleY);
-            node.scale({ x: scale, y: scale });
-            node.position({
-                x: (clipW - imgW * scale) / 2,
-                y: (clipH - imgH * scale) / 2
+    // -- Toolbar Event Listeners --
+    document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            Array.from(e.target.files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (event) => cm.addImage(event.target.result, index);
+                reader.readAsDataURL(file);
             });
-            this.layer.draw();
-            this.saveState();
+            e.target.value = ''; // Reset input
         }
-    }
+    });
 
-    addPreset(type) {
-        let preset;
-        let topGroup;
-        let visual;
-        let clipWidth = 200;
-        let clipHeight = 200;
-        if (type.startsWith('collage') || type === 'grid') {
-            topGroup = new Konva.Group({
-                x: 50,
-                y: 50,
-                draggable: true,
-            });
-            topGroup.setAttr('isPreset', true);
-            if (type === 'grid') {
-                for (let i = 0; i < 3; i++) {
-                    for (let j = 0; j < 3; j++) {
-                        const cell = new Konva.Group({
-                            x: i * 100,
-                            y: j * 100,
-                            clipX: 0,
-                            clipY: 0,
-                            clipWidth: 100,
-                            clipHeight: 100,
-                        });
-                        cell.setAttr('isClipGroup', true);
-                        cell.add(new Konva.Rect({
-                            x: 0,
-                            y: 0,
-                            width: 100,
-                            height: 100,
-                            stroke: 'black',
-                            strokeWidth: 2
-                        }));
-                        topGroup.add(cell);
-                    }
-                }
-            } else if (type === 'collage2x1') {
-                const left = new Konva.Group({
-                    x: 0,
-                    y: 0,
-                    clipX: 0,
-                    clipY: 0,
-                    clipWidth: 200,
-                    clipHeight: 200,
+    document.getElementById('addTextBtn').addEventListener('click', () => cm.addText());
+    document.getElementById('presetSelect').addEventListener('change', (e) => { cm.addPreset(e.target.value); e.target.value = ''; });
+    document.getElementById('undoBtn').addEventListener('click', () => cm.undo());
+    document.getElementById('redoBtn').addEventListener('click', () => cm.redo());
+    document.getElementById('saveBtn').addEventListener('click', () => cm.saveProject());
+    document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('loadInput').click());
+    document.getElementById('loadInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) { const reader = new FileReader(); reader.onload = (event) => cm.loadProject(event.target.result); reader.readAsText(file); }
+    });
+    document.getElementById('canvasSizeSelect').addEventListener('change', (e) => cm.setCanvasSize(e.target.value));
+    document.getElementById('exportPngBtn').addEventListener('click', () => cm.exportToPNG());
+    document.getElementById('exportPdfBtn').addEventListener('click', () => cm.exportToPDF());
+
+    // -- Preview Modal --
+    const previewModal = document.getElementById('previewModal');
+    document.getElementById('previewBtn').addEventListener('click', () => { 
+        previewModal.style.display = 'flex'; 
+        document.getElementById('previewImage').src = cm.getPreviewDataURL(); 
+    });
+    document.getElementById('closePreview').addEventListener('click', () => { 
+        previewModal.style.display = 'none'; 
+        document.getElementById('previewImage').src = ''; 
+    });
+
+    // -- Theme Toggle --
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        document.body.classList.toggle('dark');
+        localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+        cm.stage.container().style.backgroundColor = document.body.classList.contains('dark') ? '#3a3f44' : 'white';
+        cm.drawGrid();
+    });
+    if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
+
+    // -- Sidebar Tools and Properties --
+    document.getElementById('deleteBtn').addEventListener('click', () => cm.deleteSelected());
+    document.getElementById('groupBtn').addEventListener('click', () => cm.group());
+    document.getElementById('ungroupBtn').addEventListener('click', () => cm.ungroup());
+
+    document.getElementById('fontFamily').addEventListener('change', (e) => cm.updateTextProperty('fontFamily', e.target.value));
+    document.getElementById('fontSize').addEventListener('input', (e) => cm.updateTextProperty('fontSize', e.target.value));
+    document.getElementById('fillColor').addEventListener('input', (e) => cm.updateTextProperty('fill', e.target.value));
+    document.getElementById('boldBtn').addEventListener('click', () => cm.updateTextProperty('bold'));
+    document.getElementById('italicBtn').addEventListener('click', () => cm.updateTextProperty('italic'));
+    document.getElementById('underlineBtn').addEventListener('click', () => cm.updateTextProperty('underline'));
+
+    // -- Global Keyboard Listener --
+    document.addEventListener('keydown', (e) => cm.handleKeyboard(e));
+
+    // --- AI FEATURES ---
+    const aiImageModal = document.getElementById('aiImageModal');
+    const generateImageBtn = document.getElementById('generateImageBtn');
+
+    document.getElementById('openAiImageModalBtn').addEventListener('click', () => { aiImageModal.style.display = 'flex'; });
+    document.getElementById('closeAiImageModal').addEventListener('click', () => { aiImageModal.style.display = 'none'; });
+
+    // AI Image Generation
+    generateImageBtn.addEventListener('click', async () => {
+        const prompt = document.getElementById('aiImagePrompt').value;
+        if (!prompt) { showToast("Please enter a prompt."); return; }
+        
+        const loader = document.getElementById('aiImageLoader');
+        const imageEl = document.getElementById('aiGeneratedImage');
+        const addBtn = document.getElementById('addAiImageToCanvasBtn');
+        
+        loader.style.display = 'block'; imageEl.style.display = 'none'; addBtn.style.display = 'none';
+        generateImageBtn.disabled = true; generateImageBtn.textContent = "Generating...";
+
+        const apiKey = ""; // API key is handled by the environment
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+        const payload = { instances: [{ prompt: prompt }], parameters: { "sampleCount": 1 } };
+
+        try {
+            const result = await fetchWithBackoff(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (result.predictions && result.predictions[0]?.bytesBase64Encoded) {
+                const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                imageEl.src = imageUrl; imageEl.style.display = 'block'; addBtn.style.display = 'block';
+            } else { throw new Error("No image data in API response."); }
+        } catch (error) { 
+            console.error('Image generation failed:', error); 
+            showToast('Image generation failed. Please try again.'); 
+        } finally { 
+            loader.style.display = 'none'; 
+            generateImageBtn.disabled = false; 
+            generateImageBtn.textContent = "Generate"; 
+        }
+    });
+
+    document.getElementById('addAiImageToCanvasBtn').addEventListener('click', () => {
+        const imageUrl = document.getElementById('aiGeneratedImage').src;
+        if(imageUrl) cm.addImage(imageUrl);
+        aiImageModal.style.display = 'none';
+    });
+
+    // AI Text Suggestions
+    document.getElementById('generateTextBtn').addEventListener('click', async () => {
+        const prompt = document.getElementById('aiTextPrompt').value;
+        if (!prompt) { showToast("Please enter a topic for text ideas."); return; }
+        
+        const suggestionsContainer = document.getElementById('aiTextSuggestions');
+        suggestionsContainer.innerHTML = '<li>Loading...</li>';
+
+        const apiKey = ""; // API key is handled by the environment
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const userQuery = `Generate 5 short, catchy phrases for a sticker related to "${prompt}". Each phrase should be less than 8 words. Return them as a numbered list.`;
+        const payload = { contents: [{ parts: [{ text: userQuery }] }] };
+
+        try {
+            const result = await fetchWithBackoff(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+                const suggestions = text.split('\n').map(s => s.replace(/^\d+\.\s*/, '').trim()).filter(s => s);
+                suggestionsContainer.innerHTML = '';
+                suggestions.forEach(suggestion => {
+                    const li = document.createElement('li');
+                    li.textContent = suggestion;
+                    li.classList.add('ai-suggestion-item');
+                    suggestionsContainer.appendChild(li);
                 });
-                left.setAttr('isClipGroup', true);
-                left.add(new Konva.Rect({x:0,y:0,width:200,height:200,stroke:'black',strokeWidth:2}));
-                const right = new Konva.Group({
-                    x: 200,
-                    y: 0,
-                    clipX: 0,
-                    clipY: 0,
-                    clipWidth: 200,
-                    clipHeight: 200,
-                });
-                right.setAttr('isClipGroup', true);
-                right.add(new Konva.Rect({x:0,y:0,width:200,height:200,stroke:'black',strokeWidth:2}));
-                topGroup.add(left, right);
-            } else if (type === 'collage1x2') {
-                const top = new Konva.Group({
-                    x: 0,
-                    y: 0,
-                    clipX: 0,
-                    clipY: 0,
-                    clipWidth: 200,
-                    clipHeight: 200,
-                });
-                top.setAttr('isClipGroup', true);
-                top.add(new Konva.Rect({x:0,y:0,width:200,height:200,stroke:'black',strokeWidth:2}));
-                const bottom = new Konva.Group({
-                    x: 0,
-                    y: 200,
-                    clipX: 0,
-                    clipY: 0,
-                    clipWidth: 200,
-                    clipHeight: 200,
-                });
-                bottom.setAttr('isClipGroup', true);
-                bottom.add(new Konva.Rect({x:0,y:0,width:200,height:200,stroke:'black',strokeWidth:2}));
-                topGroup.add(top, bottom);
-            } else if (type === 'collage2x2') {
-                for (let i = 0; i < 2; i++) {
-                    for (let j = 0; j < 2; j++) {
-                        const cell = new Konva.Group({
-                            x: i * 150,
-                            y: j * 150,
-                            clipX: 0,
-                            clipY: 0,
-                            clipWidth: 150,
-                            clipHeight: 150,
-                        });
-                        cell.setAttr('isClipGroup', true);
-                        cell.add(new Konva.Rect({
-                            x: 0,
-                            y: 0,
-                            width: 150,
-                            height: 150,
-                            stroke: 'black',
-                            strokeWidth: 2
-                        }));
-                        topGroup.add(cell);
-                    }
-                }
-            } else if (type === 'collageTriptych') {
-                const left = new Konva.Group({
-                    x: 0,
-                    y: 0,
-                    clipX: 0,
-                    clipY: 0,
-                    clipWidth: 150,
-                    clipHeight: 300,
-                });
-                left.setAttr('isClipGroup', true);
-                left.add(new Konva.Rect({x:0,y:0,width:150,height:300,stroke:'black',strokeWidth:2}));
-                const middle = new Konva.Group({
-                    x: 150,
-                    y: 0,
-                    clipX: 0,
-                    clipY: 0,
-                    clipWidth: 200,
-                    clipHeight: 300,
-                });
-                middle.setAttr('isClipGroup', true);
-                middle.add(new Konva.Rect({x:0,y:0,width:200,height:300,stroke:'black',strokeWidth:2}));
-                const right = new Konva.Group({
-                    x: 350,
-                    y: 0,
-                    clipX: 0,
-                    clipY: 0,
-                    clipWidth: 150,
-                    clipHeight: 300,
-                });
-                right.setAttr('isClipGroup', true);
-                right.add(new Konva.Rect({x:0,y:0,width:150,height:300,stroke:'black',strokeWidth:2}));
-                topGroup.add(left, middle, right);
-            }
-            preset = topGroup;
-        } else {
-            preset = new Konva.Group({
-                x: 50,
-                y: 50,
-                draggable: true,
-                clipX: 0,
-                clipY: 0,
-                clipWidth: clipWidth,
-                clipHeight: clipHeight,
-            });
-            preset.setAttr('isPreset', true);
-            preset.setAttr('isClipGroup', true);
-            switch (type) {
-                case 'circle':
-                    clipWidth = 200;
-                    clipHeight = 200;
-                    visual = new Konva.Circle({ x: 100, y: 100, radius: 100, stroke: 'black', strokeWidth: 2 });
-                    preset.clipFunc((ctx) => {
-                        ctx.arc(100, 100, 100, 0, Math.PI * 2, false);
-                    });
-                    preset.setAttr('keepRatio', true);
-                    break;
-                case 'label':
-                    preset = new Konva.Label({ x: 50, y: 50, draggable: true });
-                    preset.add(new Konva.Tag({ fill: 'yellow', cornerRadius: 5 }));
-                    preset.add(new Konva.Text({ text: 'Label', padding: 10, fill: 'black' }));
-                    preset.setAttr('isPreset', true);
-                    this.layer.add(preset);
-                    this.layer.draw();
-                    this.saveState();
-                    return;
-                case 'rectangle':
-                    clipWidth = 200;
-                    clipHeight = 100;
-                    visual = new Konva.Rect({ x: 0, y: 0, width: 200, height: 100, stroke: 'black', strokeWidth: 2 });
-                    break;
-                case 'ellipse':
-                    clipWidth = 400;
-                    clipHeight = 200;
-                    visual = new Konva.Ellipse({ x: 200, y: 100, radiusX: 200, radiusY: 100, stroke: 'black', strokeWidth: 2 });
-                    preset.clipFunc((ctx) => {
-                        ctx.ellipse(200, 100, 200, 100, 0, 0, Math.PI * 2);
-                    });
-                    preset.setAttr('keepRatio', true);
-                    break;
-                case 'triangle':
-                    clipWidth = 200;
-                    clipHeight = 173; // approx for equilateral
-                    visual = new Konva.RegularPolygon({ x: 100, y: 86.5, sides: 3, radius: 100, stroke: 'black', strokeWidth: 2 });
-                    preset.clipFunc((ctx) => {
-                        ctx.beginPath();
-                        ctx.moveTo(100, 0);
-                        ctx.lineTo(0, 173);
-                        ctx.lineTo(200, 173);
-                        ctx.closePath();
-                    });
-                    preset.setAttr('keepRatio', true);
-                    break;
-                case 'star':
-                    clipWidth = 200;
-                    clipHeight = 200;
-                    visual = new Konva.Star({ x: 100, y: 100, numPoints: 5, innerRadius: 40, outerRadius: 100, stroke: 'black', strokeWidth: 2 });
-                    preset.clipFunc((ctx) => {
-                        ctx.beginPath();
-                        for (let i = 0; i < 10; i++) {
-                            const radius = i % 2 === 0 ? 100 : 40;
-                            const angle = (i * Math.PI / 5) + (Math.PI / 10);
-                            ctx.lineTo(100 + Math.cos(angle) * radius, 100 + Math.sin(angle) * radius);
-                        }
-                        ctx.closePath();
-                    });
-                    preset.setAttr('keepRatio', true);
-                    break;
-            }
-            preset.clipWidth(clipWidth);
-            preset.clipHeight(clipHeight);
-            if (visual) preset.add(visual);
+            } else { throw new Error("No text content in API response."); }
+        } catch (error) { 
+            console.error('Text generation failed:', error); 
+            showToast('Text generation failed.'); 
+            suggestionsContainer.innerHTML = '<li>Failed to load.</li>'; 
         }
-        if (preset) {
-            preset.on('dragmove', () => this.snapToGrid(preset));
-            preset.on('transformend', () => this.saveState());
-            this.layer.add(preset);
-            this.layer.draw();
-            this.saveState();
+    });
+
+    document.getElementById('aiTextSuggestions').addEventListener('click', (e) => {
+        if (e.target?.matches('li.ai-suggestion-item')) {
+            cm.updateTextContent(e.target.textContent);
         }
-    }
+    });
+});
 
-    handleSelect(e) {
-        if (e.target === this.stage) {
-            this.tr.nodes([]);
-            this.selectedNodes = [];
-            document.getElementById('propertiesPanel').style.display = 'none';
-        } else {
-            this.tr.nodes([e.target]);
-            this.selectedNodes = [e.target];
-            this.tr.keepRatio(!!e.target.getAttr('keepRatio'));
-            if (e.target instanceof Konva.Text) {
-                document.getElementById('propertiesPanel').style.display = 'block';
-                document.getElementById('fontFamily').value = e.target.fontFamily();
-                document.getElementById('fontSize').value = e.target.fontSize();
-                document.getElementById('fillColor').value = e.target.fill();
-            } else {
-                document.getElementById('propertiesPanel').style.display = 'none';
-            }
-        }
-        this.layer.draw();
-    }
-
-    updateTextProperty(prop, value) {
-        if (this.selectedNodes[0] instanceof Konva.Text) {
-            const text = this.selectedNodes[0];
-            let fontStyle = text.fontStyle() || '';
-            if (prop === 'fontFamily') text.fontFamily(value);
-            if (prop === 'fontSize') text.fontSize(parseInt(value));
-            if (prop === 'fill') text.fill(value);
-            if (prop === 'bold') {
-                fontStyle = fontStyle.includes('bold') ? fontStyle.replace('bold', '').trim() : (fontStyle + ' bold').trim();
-                text.fontStyle(fontStyle);
-            }
-            if (prop === 'italic') {
-                fontStyle = fontStyle.includes('italic') ? fontStyle.replace('italic', '').trim() : (fontStyle + ' italic').trim();
-                text.fontStyle(fontStyle);
-            }
-            if (prop === 'underline') text.textDecoration(text.textDecoration() === 'underline' ? '' : 'underline');
-            this.layer.draw();
-            this.saveState();
-        }
-    }
-
-    undo() {
-        if (this.historyIndex > 0) {
-            this.historyIndex--;
-            this.loadState(this.history[this.historyIndex]);
-        }
-    }
-
-    redo() {
-        if (this.historyIndex < this.history.length - 1) {
-            this.historyIndex++;
-            this.loadState(this.history[this.historyIndex]);
-        }
-    }
-
-    saveState() {
-        this.history = this.history.slice(0, this.historyIndex + 1);
-        const json = this.stage.toJSON();
-        this.history.push(json);
-        this.historyIndex++;
-    }
-
-    loadState(json) {
-        this.stage.destroyChildren();
-        const node = Konva.Node.create(json, this.containerId);
-        this.stage = node;
-        this.layer = this.stage.getChildren()[1]; // Assuming order
-        this.gridLayer = this.stage.getChildren()[0];
-        this.tr = new Konva.Transformer({
-            anchorStroke: '#2196F3',
-            anchorFill: 'white',
-            anchorSize: 12,
-            borderStroke: '#2196F3',
-            borderDash: [3, 3],
-            rotateAnchorOffset: 30,
-        });
-        this.layer.add(this.tr);
-        this.stage.draw();
-    }
-
-    getPreviewStage() {
-        const previewStage = new Konva.Stage({
-            container: 'previewContainer',
-            width: this.canvasWidth / 2,
-            height: this.canvasHeight / 2,
-        });
-        const previewLayer = this.layer.clone();
-        previewStage.add(previewLayer);
-        previewStage.scale({ x: 0.5, y: 0.5 });
-        previewStage.draw();
-        return previewStage;
-    }
-
-    exportToPNG() {
-        const dataURL = this.stage.toDataURL({ pixelRatio: 2 });
-        saveAs(dataURL, 'kai-sticker.png');
-    }
-
-    exportToPDF() {
-        const pdf = new jspdf.jsPDF({ orientation: 'landscape', unit: 'px', format: [this.canvasWidth, this.canvasHeight] });
-        const dataURL = this.stage.toDataURL({ pixelRatio: 2 });
-        pdf.addImage(dataURL, 'PNG', 0, 0, this.canvasWidth, this.canvasHeight);
-        pdf.save('kai-sticker.pdf');
-    }
-
-    print() {
-        const dataURL = this.stage.toDataURL({ pixelRatio: 2 });
-        const win = window.open();
-        win.document.write('<img src="' + dataURL + '" onload="window.print();window.close()" />');
-    }
-
-    saveProject() {
-        const json = this.stage.toJSON();
-        const blob = new Blob([json], { type: 'application/json' });
-        saveAs(blob, 'kai-project.json');
-    }
-
-    loadProject(json) {
-        this.loadState(json);
-        this.saveState();
-    }
-
-    handleKeyboard(e) {
-        if (e.ctrlKey || e.metaKey) {
-            if (e.key === 'z') this.undo();
-            if (e.key === 'y') this.redo();
-            if (e.key === 's') {
-                e.preventDefault();
-                this.saveProject();
-            }
-            if (e.key === 'c') this.copy();
-            if (e.key === 'v') this.paste();
-            if (e.key === 'd') this.duplicate();
-            if (e.key === 'g') this.group();
-        }
-        if (e.key === 'Delete') this.deleteSelected();
-        if (e.key.startsWith('Arrow')) this.nudge(e.key);
-    }
-
-    copy() {
-        if (this.selectedNodes.length) {
-            this.clipboard = this.selectedNodes[0].clone();
-        }
-    }
-
-    paste() {
-        if (this.clipboard) {
-            const clone = this.clipboard.clone({ x: this.clipboard.x() + 10, y: this.clipboard.y() + 10 });
-            this.layer.add(clone);
-            this.layer.draw();
-            this.saveState();
-        }
-    }
-
-    duplicate() {
-        this.copy();
-        this.paste();
-    }
-
-    deleteSelected() {
-        this.selectedNodes.forEach(node => node.destroy());
-        this.tr.nodes([]);
-        this.layer.draw();
-        this.saveState();
-    }
-
-    nudge(direction) {
-        const amount = 1;
-        this.selectedNodes.forEach(node => {
-            if (direction === 'ArrowUp') node.y(node.y() - amount);
-            if (direction === 'ArrowDown') node.y(node.y() + amount);
-            if (direction === 'ArrowLeft') node.x(node.x() - amount);
-            if (direction === 'ArrowRight') node.x(node.x() + amount);
-        });
-        this.layer.draw();
-        this.saveState();
-    }
-
-    group() {
-        if (this.selectedNodes.length > 1) {
-            const group = new Konva.Group({ draggable: true });
-            this.selectedNodes.forEach(node => group.add(node));
-            this.layer.add(group);
-            this.tr.nodes([group]);
-            this.selectedNodes = [group];
-            this.layer.draw();
-            this.saveState();
-        }
-    }
-
-    ungroup() {
-        if (this.selectedNodes[0] instanceof Konva.Group) {
-            const group = this.selectedNodes[0];
-            group.getChildren().forEach(child => this.layer.add(child));
-            group.destroy();
-            this.tr.nodes([]);
-            this.layer.draw();
-            this.saveState();
-        }
-    }
-}
