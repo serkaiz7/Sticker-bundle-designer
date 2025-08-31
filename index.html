@@ -109,7 +109,7 @@
         <div class="statusbar">
           <span id="zoomLabel">Zoom: 100%</span>
           <span id="canvasSize">A4 • 1123×794px</span>
-          <span id="statusTip">Hold <b>Space</b> to Pan • Mousewheel/Pinch to Zoom</span>
+          <span id="statusTip">Hold <b>Space</b> to Pan • Ctrl/Cmd + Wheel to Zoom</span>
         </div>
       </main>
     </div>
@@ -147,12 +147,14 @@
 
     <!-- Preview modal -->
     <div id="previewModal" class="modal hidden">
-      <div class="modal-card wide">
+      <div class="modal-card wide preview-wrapper">
         <div class="modal-head">
-          <h3>Preview</h3>
+          <h3>Preview (50% scale)</h3>
           <button id="closePreview">✕</button>
         </div>
-        <img id="previewImage" alt="Preview" style="width:100%;height:auto;border-radius:8px" />
+        <div class="preview-frame">
+          <img id="previewImage" alt="Preview" />
+        </div>
         <div class="modal-actions">
           <button id="downloadPreviewPNG">Download PNG</button>
           <button id="downloadPreviewPDF">Download PDF</button>
@@ -162,7 +164,7 @@
     </div>
   </div>
 
-  <!-- Scripts -->
+  <!-- Scripts (module) -->
   <script type="module" src="canvasManager.js"></script>
   <script type="module" src="app.js"></script>
 </body>
