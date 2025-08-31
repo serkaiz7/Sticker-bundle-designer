@@ -20,7 +20,7 @@
         <div class="logo" aria-hidden="true">🟣</div>
         <div>
           <h1>Kai Sticker Maker</h1>
-          <p class="subtitle">Create die-cut sticker bundles — quick, pretty, and printable</p>
+          <p class="subtitle">Create die-cut sticker bundles — quick, pretty, printable (A4)</p>
         </div>
       </div>
 
@@ -31,6 +31,8 @@
         </label>
 
         <div class="group-desktop">
+          <button id="undo" class="btn">Undo</button>
+          <button id="redo" class="btn">Redo</button>
           <button id="auto-arrange" class="btn">Auto-Arrange</button>
           <button id="trace-selected" class="btn">Trace</button>
           <button id="toggle-cut" class="btn">Cut lines</button>
@@ -75,17 +77,18 @@
       </aside>
 
       <section class="canvas-wrap">
+        <!-- stage-parent is the container that will hold the scaled Konva stage -->
         <div id="stage-parent" class="stage"></div>
 
         <div class="canvas-bottom">
           <div class="scale-helpers">
-            <small>Hover + wheel to resize (desktop). On mobile use the Scale slider above.</small>
+            <small>Canvas is A4 print size at the selected DPI and will fit your screen automatically.</small>
           </div>
         </div>
       </section>
 
       <aside class="sidebar right" id="right-panel">
-        <h2>Export Settings</h2>
+        <h2>Export & Page</h2>
         <label>Canvas DPI
           <select id="export-dpi">
             <option value="150">150</option>
