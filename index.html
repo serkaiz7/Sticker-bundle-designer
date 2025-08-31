@@ -1,115 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kai Sticker Maker</title>
-
-  <!-- Google Fonts (base set; more can be injected dynamically) -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
-
-  <!-- App styles -->
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Konva (canvas engine) -->
-  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
-  <!-- jsPDF (PDF export) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-YkG3rE2m3i+qYz8bQ1ZKq0hH0QZr2uQZ6y8aemQp2wJXgA8pZt1F4b7o4Lw8l2XH6nQH7y3z4v0mFxJrJ3V7Jw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <!-- Konva.js -->
+  <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
+  <!-- FileSaver.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo">🟣</div>
-      <div class="brand-text">
-        <strong>Kai</strong> Sticker Maker
-      </div>
-    </div>
-
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">Kai Sticker Maker</div>
     <nav class="toolbar">
-      <button id="btn-undo" title="Undo (Ctrl+Z)">↶</button>
-      <button id="btn-redo" title="Redo (Ctrl+Y)">↷</button>
-      <div class="divider"></div>
-
-      <button id="btn-add-text" title="Add Text (T)">T</button>
-      <label class="upload-btn" title="Upload Images">
-        <input id="file-input" type="file" accept="image/*" multiple />
-        ⬆ Images
+      <button id="undoBtn">⎌ Undo</button>
+      <button id="redoBtn">↻ Redo</button>
+      <button id="addTextBtn">＋ Text</button>
+      <label class="uploadBtn">
+        Upload <input type="file" id="uploadImages" multiple hidden />
       </label>
-
-      <button id="btn-toggle-grid" title="Toggle Grid (G)">#</button>
-      <button id="btn-presets" title="Presets">★</button>
-      <div class="divider"></div>
-
-      <button id="btn-preview" title="Preview">👁</button>
-      <button id="btn-download-png" title="Download PNG">PNG</button>
-      <button id="btn-download-pdf" title="Download PDF (A4)">PDF</button>
-      <button id="btn-print" title="Print">🖨</button>
-
-      <button id="btn-menu" class="hamburger" aria-label="Menu">☰</button>
+      <button id="toggleGridBtn">☰ Grid</button>
+      <button id="previewBtn">👁 Preview</button>
+      <button id="downloadBtn">⬇ Download</button>
+      <button id="printBtn">🖨 Print</button>
     </nav>
+    <button class="hamburger">☰</button>
   </header>
 
-  <main class="main">
-    <!-- Side panel -->
-    <aside class="sidebar" id="sidebar">
-      <h3>Presets</h3>
-      <div class="preset-list">
-        <button class="preset" data-preset="grid">Grid 4×3</button>
-        <button class="preset" data-preset="circles">Circle Bundle</button>
-        <button class="preset" data-preset="labels">Label Sheet</button>
-      </div>
+  <!-- Side Toolbar -->
+  <aside class="side-toolbar">
+    <h3>Presets</h3>
+    <button id="gridPresetBtn">Sticker Grid</button>
+    <button id="circlePresetBtn">Circle Bundle</button>
+    <button id="labelsPresetBtn">Labels</button>
+  </aside>
 
-      <h3 style="margin-top:1rem;">Text Styles</h3>
-      <div class="text-styles">
-        <button class="font-pill" data-font="Poppins">Poppins</button>
-        <button class="font-pill" data-font="Inter">Inter</button>
-      </div>
-
-      <p class="hint">Tip: drop images anywhere in the stage.</p>
-    </aside>
-
-    <!-- Canvas container -->
-    <section class="stage-wrap">
-      <div id="stage-container">
-        <!-- Konva will inject the canvas here -->
-      </div>
-      <div class="statusbar">
-        <span id="status-zoom">Zoom: 100%</span>
-        <span id="status-size">Canvas: 1123×794</span>
-        <span id="status-tip">Hold <b>Space</b> to Pan • Mousewheel/Pinch to Zoom</span>
-      </div>
-    </section>
+  <!-- Main Canvas Area -->
+  <main class="workspace">
+    <div id="container"></div>
   </main>
 
-  <!-- Floating Text Toolbar -->
-  <div id="text-toolbar" class="floating-toolbar hidden">
-    <select id="font-family">
-      <option value="Poppins" selected>Poppins</option>
-      <option value="Inter">Inter</option>
-      <option value="Arial">Arial</option>
-      <option value="Times New Roman">Times New Roman</option>
-      <option value="Courier New">Courier New</option>
-    </select>
-    <input id="font-size" type="number" min="8" max="300" step="1" value="48" />
-    <input id="font-color" type="color" value="#111111" />
-    <button id="btn-bold" data-toggle="false"><b>B</b></button>
-    <button id="btn-italic" data-toggle="false"><i>I</i></button>
-    <button id="btn-underline" data-toggle="false"><u>U</u></button>
+  <!-- Preview Modal -->
+  <div id="previewModal" class="modal hidden">
+    <div class="modal-content">
+      <span id="closePreview" class="close">&times;</span>
+      <h2>Preview</h2>
+      <canvas id="previewCanvas"></canvas>
+      <button id="downloadPNG">Download PNG</button>
+      <button id="downloadPDF">Download PDF</button>
+    </div>
   </div>
 
-  <!-- Preview Modal -->
-  <dialog id="preview-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-head">
-        <h3>Preview</h3>
-        <button id="preview-close">✕</button>
-      </div>
-      <img id="preview-image" alt="Preview" />
-    </div>
-  </dialog>
-
-  <!-- Scripts -->
   <script src="canvasManager.js"></script>
   <script src="app.js"></script>
 </body>
