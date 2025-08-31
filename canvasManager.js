@@ -168,11 +168,22 @@ export class CanvasManager {
         this.layer.batchDraw();
     }
 
+    getIntersectionArea(r1, r2) {
+        const x_overlap = Math.max(0, Math.min(r1.x + r1.width, r2.x + r2.width) - Math.max(r1.x, r2.x));
+        const y_overlap = Math.max(0, Math.min(r1.y + r1.height, r2.y + r2.height) - Math.max(r1.y, r2.y));
+        return x_overlap * y_overlap;
+    }
+
     findClipGroup(node) {
+        let maxArea = 0;
         let targetClipGroup = null;
         this.layer.find('Group').forEach(g => {
-            if (g.getAttr('isClipGroup') && node.intersects(g.getClientRect())) {
-                targetClipGroup = g;
+            if (g.getAttr('isClipGroup')) {
+                const area = this.getIntersectionArea(node.getClientRect(), g.getClientRect());
+                if (area > maxArea) {
+                    maxArea = area;
+                    targetClipGroup = g;
+                }
             }
         });
         return targetClipGroup;
@@ -378,11 +389,11 @@ export class CanvasManager {
                     visual = new Konva.Rect({ x: 0, y: 0, width: 200, height: 100, stroke: 'black', strokeWidth: 2 });
                     break;
                 case 'ellipse':
-                    clipWidth = 200;
-                    clipHeight = 100;
-                    visual = new Konva.Ellipse({ x: 100, y: 50, radiusX: 100, radiusY: 50, stroke: 'black', strokeWidth: 2 });
+                    clipWidth = 400;
+                    clipHeight = 200;
+                    visual = new Konva.Ellipse({ x: 200, y: 100, radiusX: 200, radiusY: 100, stroke: 'black', strokeWidth: 2 });
                     preset.clipFunc((ctx) => {
-                        ctx.ellipse(100, 50, 100, 50, 0, 0, Math.PI * 2);
+                        ctx.ellipse(200, 100, 200, 100, 0, 0, Math.PI * 2);
                     });
                     preset.setAttr('keepRatio', true);
                     break;
