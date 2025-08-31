@@ -96,6 +96,27 @@ body{
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 
+/* preview specifics */
+.preview-wrapper .preview-frame{
+  width: calc(1123px * 0.5);
+  height: calc(794px * 0.5);
+  overflow: hidden;
+  margin: 0 auto;
+  border-radius: 8px;
+  background: #fff;
+  display:flex;align-items:center;justify-content:center;
+  padding:6px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+.preview-wrapper .preview-frame img{
+  width: 1123px; /* full-size image, scaled down by container wrapper */
+  height: 794px;
+  transform-origin: top left;
+  transform: scale(0.5);
+  image-rendering: auto;
+  border-radius:6px;
+}
+
 /* hidden helper */
 .hidden{display:none}
 
