@@ -1,75 +1,147 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kai Sticker Maker</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,700;1,400;1,700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Lato:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <title>Kai Sticker Maker - Pro AI</title>
+    <!-- External Libraries -->
     <script src="https://unpkg.com/konva@9.3.14/konva.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- Fonts and Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Local Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="toolbar">
-        <button id="uploadBtn">Upload Images</button>
-        <button id="addTextBtn">Add Text</button>
-        <select id="presetSelect">
-            <option value="">Add Preset</option>
-            <option value="grid">Grid 3x3</option>
-            <option value="collage2x1">Collage 2x1</option>
-            <option value="collage1x2">Collage 1x2</option>
-            <option value="collage2x2">Collage 2x2</option>
-            <option value="collageTriptych">Collage Triptych</option>
-            <option value="circle">Circle</option>
-            <option value="label">Label</option>
-            <option value="rectangle">Rectangle</option>
-            <option value="ellipse">Ellipse</option>
-            <option value="triangle">Triangle</option>
-            <option value="star">Star</option>
-        </select>
-        <button id="undoBtn">Undo</button>
-        <button id="redoBtn">Redo</button>
-        <button id="saveBtn">Save Project</button>
-        <button id="loadBtn">Load Project</button>
-        <button id="previewBtn">Preview</button>
-        <button id="exportPngBtn">Export PNG</button>
-        <button id="exportPdfBtn">Export PDF</button>
-        <button id="printBtn">Print</button>
-        <button id="themeToggle">Toggle Theme</button>
-    </div>
-    <div class="sidebar">
-        <!-- Properties panel -->
-        <div id="propertiesPanel" style="display:none;">
-            <h3>Properties</h3>
-            <label>Font Family: <select id="fontFamily">
-                <option value="Roboto">Roboto</option>
-                <option value="Open Sans">Open Sans</option>
-                <option value="Lato">Lato</option>
-            </select></label>
-            <label>Font Size: <input type="number" id="fontSize" value="24"></label>
-            <label>Color: <input type="color" id="fillColor" value="#000000"></label>
-            <button id="boldBtn">Bold</button>
-            <button id="italicBtn">Italic</button>
-            <button id="underlineBtn">Underline</button>
+
+    <!-- TOP TOOLBAR -->
+    <div class="top-toolbar">
+        <div class="toolbar-group">
+            <button id="saveBtn" title="Save Project">Save</button>
+            <button id="loadBtn" title="Load Project">Load</button>
+        </div>
+        <div class="toolbar-group">
+            <button id="uploadBtn" title="Upload Images">Upload Image</button>
+            <button id="addTextBtn" title="Add Text">Add Text</button>
+            <button id="openAiImageModalBtn" title="Generate Image with AI" class="ai-button">✨ Generate Image</button>
+            <select id="presetSelect">
+                <option value="" disabled selected>Add Shape</option>
+                <option value="circle">Circle</option>
+                <option value="rectangle">Rectangle</option>
+            </select>
+        </div>
+         <div class="toolbar-group">
+            <label for="canvasSizeSelect" style="font-size: 14px; font-weight: 500; margin-right: 5px;">Canvas Size:</label>
+            <select id="canvasSizeSelect">
+                <option value="a4">A4 (Landscape)</option>
+                <option value="letter">Letter (Landscape)</option>
+                <option value="legal">Legal (Landscape)</option>
+                <option value="tabloid">Tabloid (Landscape)</option>
+                <option value="1920x1080">1080p (1920x1080)</option>
+                <option value="1280x720">720p (1280x720)</option>
+            </select>
+        </div>
+        <div class="toolbar-group">
+            <button id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
+            <button id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
+        </div>
+        <div class="toolbar-group">
+            <button id="previewBtn">Preview</button>
+            <button id="exportPngBtn">Export PNG</button>
+            <button id="exportPdfBtn">Export PDF</button>
+        </div>
+        <div class="toolbar-group" style="border-right: none;">
+            <button id="themeToggle">Toggle Theme</button>
         </div>
     </div>
-    <div id="container" class="canvas-container"></div>
-    <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
-    <input type="file" id="loadInput" accept=".json" style="display:none;">
+
+    <!-- MAIN CONTENT -->
+    <div class="main-container">
+        <!-- LEFT SIDEBAR -->
+        <div class="sidebar">
+            <!-- Properties Panel -->
+            <div id="propertiesPanel" class="sidebar-section" style="display:none;">
+                <h3>Element Properties</h3>
+                <div id="text-properties" style="display:none;">
+                    <label>Font Family:
+                        <select id="fontFamily">
+                            <option value="Inter">Inter</option>
+                            <option value="Roboto">Roboto</option>
+                            <option value="Arial">Arial</option>
+                        </select>
+                    </label>
+                    <label>Font Size: <input type="number" id="fontSize" value="24" min="1"></label>
+                    <label>Color: <input type="color" id="fillColor" value="#000000"></label>
+                    <div class="button-group">
+                        <button id="boldBtn"><b>B</b></button>
+                        <button id="italicBtn"><i>I</i></button>
+                        <button id="underlineBtn"><u>U</u></button>
+                    </div>
+                </div>
+                 <div id="ai-text-properties" style="display:none;">
+                    <hr style="margin: 20px 0; border-color: var(--border-light);">
+                    <label for="aiTextPrompt">✨ Get text ideas for a topic:</label>
+                    <input type="text" id="aiTextPrompt" placeholder="e.g., motivational quote">
+                    <button id="generateTextBtn" class="sidebar-button">Suggest Text</button>
+                    <ul id="aiTextSuggestions"></ul>
+                </div>
+            </div>
+             <!-- Tools Panel -->
+            <div class="sidebar-section">
+                <h3>Tools</h3>
+                <div class="button-group">
+                     <button id="deleteBtn" title="Delete Selected (Delete)">Delete</button>
+                     <button id="groupBtn" title="Group Selected (Ctrl+G)">Group</button>
+                     <button id="ungroupBtn" title="Ungroup Selected">Ungroup</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CANVAS -->
+        <div id="canvas-area" class="canvas-area">
+            <div id="container"></div>
+        </div>
+    </div>
+    
+    <!-- Hidden Inputs for file dialogs -->
+    <input type="file" id="fileInput" accept="image/*" multiple class="hidden-input">
+    <input type="file" id="loadInput" accept=".json" class="hidden-input">
 
     <!-- Preview Modal -->
     <div id="previewModal" class="modal">
         <div class="modal-content">
-            <span id="closePreview">&times;</span>
-            <div id="previewContainer"></div>
+            <span id="closePreview" class="close-modal">&times;</span>
+            <h2>Finished Product Preview</h2>
+            <img id="previewImage" src="" alt="Preview of your design">
         </div>
     </div>
+    
+    <!-- AI Image Generation Modal -->
+    <div id="aiImageModal" class="modal">
+        <div class="modal-content">
+            <span id="closeAiImageModal" class="close-modal">&times;</span>
+            <h2>✨ Generate Image with AI</h2>
+            <div class="ai-prompt-container">
+                <textarea id="aiImagePrompt" placeholder="e.g., A cute watercolor fox reading a book"></textarea>
+                <button id="generateImageBtn">Generate</button>
+            </div>
+            <div id="aiImageResultContainer">
+                <div id="aiImageLoader" style="display: none;">Generating... please wait.</div>
+                <img id="aiGeneratedImage" src="" alt="AI Generated Image" style="display:none;">
+            </div>
+            <button id="addAiImageToCanvasBtn" style="display:none;">Add to Canvas</button>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
 
-    <script type="module" src="canvasManager.js"></script>
+    <!-- Local JavaScript -->
     <script type="module" src="app.js"></script>
+
 </body>
 </html>
+
